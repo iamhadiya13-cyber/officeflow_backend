@@ -48,10 +48,10 @@ const seed = async () => {
   const admin = await User.create({ name: 'Nikunj', email: 'nikunj@flyticsglob.com', passwordHash, role: 'SUPER_ADMIN', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1990-01-15') })
   const harsh = await User.create({ name: 'Harsh', email: 'harsh@flyticsglob.com', passwordHash, role: 'MANAGER', isActive: true, mustChangePassword: false, dateOfBirth: new Date('2001-10-11') })
   const kamal = await User.create({ name: 'Kamal', email: 'kamal@flyticsglob.com', passwordHash, role: 'MANAGER', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1986-04-17') })
-  
-  const ghanshyam = await User.create({ name: 'Ghanshyam', email: 'ghanshyam@flyticsglob.com', passwordHash, role: 'INTERN', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1995-03-05') })
-  const naitik = await User.create({ name: 'Naitik', email: 'naitik@flyticsglob.com', passwordHash, role: 'INTERN', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1993-11-18') })
-  
+
+  const ghanshyam = await User.create({ name: 'Ghanshyam', email: 'ghanshyam@flyticsglob.com', passwordHash, role: 'INTERN', isActive: true, mustChangePassword: false, dateOfBirth: new Date('2005-05-11') })
+  const naitik = await User.create({ name: 'Naitik', email: 'naitik@flyticsglob.com', passwordHash, role: 'INTERN', isActive: true, mustChangePassword: false, dateOfBirth: new Date('2005-05-25') })
+
   const kathan = await User.create({ name: 'Kathan', email: 'kathan@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('2004-07-17') })
   const yash = await User.create({ name: 'Yash', email: 'yash@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('2001-05-09') })
   const parth = await User.create({ name: 'Parth', email: 'parth@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('2002-11-01') })

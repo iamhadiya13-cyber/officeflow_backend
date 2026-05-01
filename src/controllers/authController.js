@@ -62,6 +62,8 @@ const login = async (req, res) => {
 
     return res.json(successResponse('Login successful', {
       user: userObj,
+      accessToken,
+      refreshToken,
       mustChangePassword: user.mustChangePassword
     }))
   } catch (err) {
@@ -72,7 +74,7 @@ const login = async (req, res) => {
 
 const logout = async (req, res) => {
   try {
-    const token = req.cookies?.refreshToken
+    const token = req.body?.refreshToken || req.cookies?.refreshToken
     if (token) {
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
       await RefreshToken.deleteOne({ tokenHash })
@@ -87,7 +89,7 @@ const logout = async (req, res) => {
 
 const refresh = async (req, res) => {
   try {
-    const token = req.cookies?.refreshToken
+    const token = req.body?.refreshToken || req.cookies?.refreshToken
     if (!token) return res.status(401).json(errorResponse('No refresh token'))
     
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET)
@@ -113,7 +115,7 @@ const refresh = async (req, res) => {
     res.cookie('accessToken', accessToken, { ...COOKIE_OPTIONS, maxAge: 15 * 60 * 1000 })
     res.cookie('refreshToken', newRefresh, { ...COOKIE_OPTIONS, maxAge: 7 * 24 * 60 * 60 * 1000 })
 
-    return res.json(successResponse('Token refreshed'))
+    return res.json(successResponse('Token refreshed', { accessToken, refreshToken: newRefresh }))
   } catch (err) {
     return res.status(401).json(errorResponse('Token refresh failed'))
   }

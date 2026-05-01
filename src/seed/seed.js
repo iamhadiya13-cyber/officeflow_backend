@@ -46,21 +46,45 @@ const seed = async () => {
   const currentYear = new Date().getFullYear()
 
   const admin = await User.create({ name: 'Nikunj', email: 'nikunj@flyticsglob.com', passwordHash, role: 'SUPER_ADMIN', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1990-01-15') })
-  const admin2 = await User.create({ name: 'harsh', email: 'harsh@flyticsglob.com', passwordHash, role: 'MANAGER', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1988-03-10') })
-  const emp1 = await User.create({ name: 'Ghanshyam', email: 'ghanshyam@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1995-03-05') })
-  const emp2 = await User.create({ name: 'Naitik', email: 'naitik@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1993-11-18') })
-  const emp3 = await User.create({ name: 'Kathan', email: 'kathan@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1991-02-28') })
-  const emp4 = await User.create({ name: 'Yash', email: 'yash@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1994-08-14') })
-  const emp5 = await User.create({ name: 'Parth', email: 'parth@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1994-08-14') })
-  const emp6 = await User.create({ name: 'kamal', email: 'kamal@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1994-08-14') })
+  const harsh = await User.create({ name: 'Harsh', email: 'harsh@flyticsglob.com', passwordHash, role: 'MANAGER', isActive: true, mustChangePassword: false, dateOfBirth: new Date('2001-10-11') })
+  const kamal = await User.create({ name: 'Kamal', email: 'kamal@flyticsglob.com', passwordHash, role: 'MANAGER', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1986-04-17') })
+  
+  const ghanshyam = await User.create({ name: 'Ghanshyam', email: 'ghanshyam@flyticsglob.com', passwordHash, role: 'INTERN', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1995-03-05') })
+  const naitik = await User.create({ name: 'Naitik', email: 'naitik@flyticsglob.com', passwordHash, role: 'INTERN', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1993-11-18') })
+  
+  const kathan = await User.create({ name: 'Kathan', email: 'kathan@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('2004-07-17') })
+  const yash = await User.create({ name: 'Yash', email: 'yash@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('2001-05-09') })
+  const parth = await User.create({ name: 'Parth', email: 'parth@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('2002-11-01') })
+  const prachi = await User.create({ name: 'Prachi', email: 'prachi@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('2003-09-26') })
+  const shruti = await User.create({ name: 'Shruti', email: 'shruti@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('2004-04-16') })
+  const sahil = await User.create({ name: 'Sahil', email: 'sahil@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('2003-11-30') })
 
-  const allUsers = [admin, admin2, emp1, emp2, emp3, emp4, emp5, emp6]
+  const allUsers = [admin, harsh, kamal, ghanshyam, naitik, kathan, yash, parth, prachi, shruti, sahil]
 
   console.log('Creating leave types...')
   const annualLeave = await LeaveType.create({ name: 'Annual Leave', daysAllowed: 12, carryForward: false })
 
   console.log('Creating leave balances...')
-  await Promise.all(allUsers.map(u => LeaveBalance.create({ userId: u._id, leaveTypeId: annualLeave._id, year: currentYear, usedDays: 0, remainingDays: 12, extraLeaves: 0 })))
+  const leaveDataMap = {
+    'harsh': { total: 19, used: 4 },
+    'kamal': { total: 19, used: 2 },
+    'kathan': { total: 12, used: 3.5 },
+    'parth': { total: 15, used: 3 },
+    'prachi': { total: 13, used: 3.5 },
+    'sahil': { total: 12, used: 4 },
+    'shruti': { total: 13, used: 3.5 },
+    'yash': { total: 16, used: 13 }
+  }
+
+  await Promise.all(allUsers.map(u => {
+    const nameLower = u.name.toLowerCase()
+    const mapped = leaveDataMap[nameLower]
+    if (mapped) {
+      return LeaveBalance.create({ userId: u._id, leaveTypeId: annualLeave._id, year: currentYear, usedDays: mapped.used, remainingDays: mapped.total - mapped.used, extraLeaves: 0 })
+    } else {
+      return LeaveBalance.create({ userId: u._id, leaveTypeId: annualLeave._id, year: currentYear, usedDays: 0, remainingDays: 12, extraLeaves: 0 })
+    }
+  }))
 
   console.log('Creating monthly budget...')
   await MonthlyBudget.create({ monthlyAmount: toDecimal(5000), effectiveFrom: new Date(currentYear, 0, 1), createdBy: admin._id })
@@ -127,12 +151,18 @@ const seed = async () => {
   console.log('  Password : Admin@1234')
   console.log('  Role     : SUPER_ADMIN')
   console.log('\n  ADMIN / MANAGER')
+  console.log('  Email    : harsh@flyticsglob.com  | Role: MANAGER')
   console.log('  Email    : kamal@flyticsglob.com  | Role: MANAGER')
-  console.log('\n  EMPLOYEES')
+  console.log('\n  INTERNS')
   console.log('  Email    : ghanshyam@flyticsglob.com')
   console.log('  Email    : naitik@flyticsglob.com')
+  console.log('\n  EMPLOYEES')
   console.log('  Email    : kathan@flyticsglob.com')
   console.log('  Email    : yash@flyticsglob.com')
+  console.log('  Email    : parth@flyticsglob.com')
+  console.log('  Email    : prachi@flyticsglob.com')
+  console.log('  Email    : shruti@flyticsglob.com')
+  console.log('  Email    : sahil@flyticsglob.com')
   console.log('\n  All passwords: Admin@1234')
   console.log('  Login at: http://localhost:5173/login')
   console.log('================================================\n')

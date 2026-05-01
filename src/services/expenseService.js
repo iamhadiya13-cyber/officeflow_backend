@@ -80,19 +80,14 @@ export const applyExpenseScope = async (query, userId, rawRole, context = 'list'
     if (effectiveScope === 'me') {
       query.employeeId = uId;
     }
-    // For list context, managers see all — no restriction
     return query;
   }
 
-  // EMPLOYEE — always restricted to their own expenses only
-  // Override any employee_ids filter that may have been passed
-  if (query.employeeId && query.employeeId.$in) {
-    // If a specific employee filter was passed, still restrict to self only
-    const selfOnly = query.employeeId.$in.filter(id => id.toString() === uId.toString());
-    query.employeeId = selfOnly.length > 0 ? uId : uId;
-  } else {
+  // EMPLOYEE / INTERN — restrict to self when 'me', show all when 'all'
+  if (effectiveScope === 'me') {
     query.employeeId = uId;
   }
+  // effectiveScope === 'all': no filter — show all employees' expenses
 
   return query;
 };

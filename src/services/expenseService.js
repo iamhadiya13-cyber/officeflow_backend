@@ -69,7 +69,7 @@ export const applyExpenseScope = async (query, userId, rawRole, context = 'list'
 
   // SUPER_ADMIN sees everything — no restrictions
   if (role === 'SUPER_ADMIN') {
-    if (context === 'dashboard' && effectiveScope === 'me') {
+    if (effectiveScope === 'me') {
       query.employeeId = uId;
     }
     return query;
@@ -77,7 +77,7 @@ export const applyExpenseScope = async (query, userId, rawRole, context = 'list'
 
   // MANAGER sees everything (all employees' expenses)
   if (role === 'MANAGER') {
-    if (context === 'dashboard' && effectiveScope === 'me') {
+    if (effectiveScope === 'me') {
       query.employeeId = uId;
     }
     // For list context, managers see all — no restriction
@@ -101,7 +101,7 @@ const buildFilterLogic = async (userId, role, filters) => {
   const {
     is_settled, expense_type, from, to, search,
     month, year, min_amount, max_amount,
-    is_archived = 'false', employee_ids
+    is_archived = 'false', employee_ids, scope
   } = filters;
 
   let query = { isArchived: is_archived === 'true' };
@@ -171,7 +171,7 @@ const buildFilterLogic = async (userId, role, filters) => {
     ];
   }
 
-  return await applyExpenseScope(query, userId, role, 'list');
+  return await applyExpenseScope(query, userId, role, 'list', scope || 'all');
 };
 
 const getExpenses = async ({ userId, role, filters }) => {

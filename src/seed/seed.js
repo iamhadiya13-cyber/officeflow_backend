@@ -54,7 +54,7 @@ const seed = async () => {
   const emp5 = await User.create({ name: 'Parth', email: 'parth@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1994-08-14') })
   const emp6 = await User.create({ name: 'kamal', email: 'kamal@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1994-08-14') })
 
-  const allUsers = [admin, admin2, emp1, emp2, emp3, emp4]
+  const allUsers = [admin, admin2, emp1, emp2, emp3, emp4, emp5, emp6]
 
   console.log('Creating leave types...')
   const annualLeave = await LeaveType.create({ name: 'Annual Leave', daysAllowed: 12, carryForward: false })
@@ -70,6 +70,54 @@ const seed = async () => {
 
   console.log('Processing birthday contributions...')
   await budgetService.processBirthdayContributions()
+
+  console.log('Creating expenses from seed data...')
+  const expenseData = [
+    { date: '2026-04-01', name: 'Naitik', details: 'Tea', amount: 50 },
+    { date: '2026-04-02', name: 'Naitik', details: 'Tea', amount: 60 },
+    { date: '2026-04-03', name: 'Naitik', details: 'Ghoghara', amount: 280 },
+    { date: '2026-04-08', name: 'Naitik', details: 'Puff + tea', amount: 210 },
+    { date: '2026-04-09', name: 'Naitik', details: 'Dabali + tea', amount: 210 },
+    { date: '2026-04-10', name: 'Naitik', details: 'tea', amount: 60 },
+    { date: '2026-04-07', name: 'Ghanshyam', details: 'tea', amount: 40 },
+    { date: '2026-04-13', name: 'Yash', details: 'tea', amount: 40 },
+    { date: '2026-04-10', name: 'Yash', details: 'gathiya', amount: 270 },
+    { date: '2026-04-06', name: 'Yash', details: 'tea', amount: 50 },
+    { date: '2026-04-14', name: 'Naitik', details: 'Samosa +tea', amount: 290 },
+    { date: '2026-04-15', name: 'Naitik', details: 'tea', amount: 40 },
+    { date: '2026-04-16', name: 'Ghanshyam', details: 'tea', amount: 40 },
+    { date: '2026-04-20', name: 'Ghanshyam', details: 'Vadapaw+tea', amount: 160 },
+    { date: '2026-04-21', name: 'Kathan', details: 'tea', amount: 40 },
+    { date: '2026-04-22', name: 'Kathan', details: 'Tea', amount: 40 },
+    { date: '2026-04-23', name: 'Kathan', details: 'tea', amount: 50 },
+    { date: '2026-04-16', name: 'Kathan', details: 'chorafadi', amount: 200 },
+    { date: '2026-04-16', name: 'harsh', details: 'Cake', amount: 445 },
+    { date: '2026-04-17', name: 'Parth', details: 'Cake', amount: 450 },
+    { date: '2026-04-24', name: 'Kathan', details: 'Tea', amount: 70 },
+    { date: '2026-04-24', name: 'harsh', details: 'Puff', amount: 200 },
+    { date: '2026-04-27', name: 'Kathan', details: 'Tea', amount: 60 },
+    { date: '2026-04-29', name: 'Kathan', details: 'Dabali', amount: 320 }
+  ]
+
+  const expensesToInsert = []
+  for (const item of expenseData) {
+    const user = allUsers.find(u => u.name.toLowerCase() === item.name.toLowerCase())
+    if (user) {
+      expensesToInsert.push({
+        employeeId: user._id,
+        expenseType: 'FOOD',
+        title: item.details,
+        amount: toDecimal(item.amount),
+        expenseDate: new Date(item.date),
+        isSettled: false
+      })
+    }
+  }
+
+  if (expensesToInsert.length > 0) {
+    await ExpenseRequest.insertMany(expensesToInsert)
+    console.log(`Seeded ${expensesToInsert.length} expenses.`)
+  }
 
   console.log('\n================================================')
   console.log('  SEEDED LOGIN CREDENTIALS')

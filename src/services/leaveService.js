@@ -256,11 +256,30 @@ const createLeaveRequest = async ({ employeeId, leaveTypeId, startDate, endDate,
   return mapLeaveRequest(request);
 };
 
-const deleteLeaveRequest = async (id, userId) => {
+const deleteLeaveRequest = async (id, userId, role) => {
   const request = await LeaveRequest.findById(id);
   if (!request) throw { statusCode: 404, message: 'Leave request not found' };
-  if (request.employeeId.toString() !== userId.toString()) throw { statusCode: 403, message: 'Not authorized' };
-  if (request.status !== 'pending') throw { statusCode: 400, message: 'Can only delete pending requests' };
+  
+  if (role !== 'SUPER_ADMIN' && role !== 'MANAGER') {
+    if (request.employeeId.toString() !== userId.toString()) throw { statusCode: 403, message: 'Not authorized' };
+    if (request.status !== 'pending') throw { statusCode: 400, message: 'Can only delete pending requests' };
+  }
+
+  // If we delete an approved request, refund the balance
+  if (request.status === 'approved') {
+    const currentYear = new Date(request.startDate).getFullYear() || new Date().getFullYear();
+    const balance = await LeaveBalance.findOne({
+      userId: request.employeeId,
+      leaveTypeId: request.leaveTypeId,
+      year: currentYear
+    });
+
+    if (balance) {
+      balance.usedDays -= request.totalDays;
+      balance.remainingDays += request.totalDays;
+      await balance.save();
+    }
+  }
   
   await LeaveRequest.findByIdAndDelete(id);
 };

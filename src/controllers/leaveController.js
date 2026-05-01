@@ -111,7 +111,7 @@ const getOne = async (req, res) => {
 
 const deleteRequest = async (req, res) => {
   try {
-    await leaveService.deleteLeaveRequest(req.params.id, req.user._id);
+    await leaveService.deleteLeaveRequest(req.params.id, req.user._id, req.user.role);
     return res.json(successResponse('Leave request deleted'));
   } catch (err) {
     return res.status(err.statusCode || 500).json(errorResponse(err.message));

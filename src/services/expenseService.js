@@ -295,8 +295,6 @@ const archiveExpense = async ({ id, userId, role, reason }) => {
     if (existing.employeeId.toString() !== userId.toString()) throw { statusCode: 403, message: 'Not authorized' };
     if (existing.isSettled) throw { statusCode: 400, message: 'Can only archive unsettled expenses' };
     reason = 'Cancelled by owner';
-  } else if (role === 'MANAGER') {
-    throw { statusCode: 403, message: 'Managers cannot archive expenses' };
   }
 
   existing.isArchived = true;

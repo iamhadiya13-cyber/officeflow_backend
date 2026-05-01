@@ -78,7 +78,7 @@ const create = async (req, res) => {
     const { LeaveType } = await import('../models/LeaveType.js')
     const { LeaveBalance } = await import('../models/LeaveBalance.js')
     const annualLeave = await LeaveType.findOne({ name: 'Annual Leave' })
-    if (annualLeave) {
+    if (annualLeave && role !== 'INTERN') {
       await LeaveBalance.create({
         userId: user._id,
         leaveTypeId: annualLeave._id,

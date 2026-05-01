@@ -77,6 +77,7 @@ const seed = async () => {
   }
 
   await Promise.all(allUsers.map(u => {
+    if (u.role === 'INTERN') return Promise.resolve()
     const nameLower = u.name.toLowerCase()
     const mapped = leaveDataMap[nameLower]
     if (mapped) {

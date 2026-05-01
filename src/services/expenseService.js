@@ -662,6 +662,7 @@ const getPersonSummary = async ({ userId, role, filters }) => {
     FOOD: { amount: 0, count: 0 },
     OTHER: { amount: 0, count: 0 },
     TRIP: { amount: 0, count: 0 },
+    TEAM_FUND: { amount: 0, count: 0 },
   };
 
   typeResult.forEach(r => {

@@ -1,6 +1,7 @@
 import { User } from '../models/User.js';
 import { EmployeeFundContribution } from '../models/EmployeeFundContribution.js';
 import { EmployeeFund } from '../models/EmployeeFund.js';
+import { ExpenseRequest } from '../models/ExpenseRequest.js';
 import { toDecimal } from '../utils/validators.js';
 import mongoose from 'mongoose';
 
@@ -26,9 +27,14 @@ export const fundService = {
       contributionType: 'JOINING' 
     }).populate('collectedBy', 'name');
 
-    // Aggregate Employee Fund Balance from actual contributions
-    const allContributions = await EmployeeFundContribution.find({});
-    const currentBalance = allContributions.reduce((sum, c) => sum + parseFloat(c.amount.toString()), 0);
+    // Aggregate Employee Fund Balance from actual contributions minus TEAM_FUND expenses.
+    const [allContributions, teamFundExpenses] = await Promise.all([
+      EmployeeFundContribution.find({}),
+      ExpenseRequest.find({ expenseType: 'TEAM_FUND', isArchived: false }),
+    ]);
+    const totalContributions = allContributions.reduce((sum, c) => sum + parseFloat(c.amount.toString()), 0);
+    const totalTeamFundExpenses = teamFundExpenses.reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0);
+    const currentBalance = totalContributions - totalTeamFundExpenses;
 
     // Sync it to EmployeeFund to fix any drift
     await EmployeeFund.findOneAndUpdate(

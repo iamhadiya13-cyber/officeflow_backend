@@ -73,6 +73,10 @@ export const fundService = {
 
     let amount = 0;
     if (type === 'BIRTHDAY') {
+      if (user.role === 'INTERN') {
+        throw { statusCode: 400, message: 'Interns do not need to pay birthday fund' };
+      }
+
       amount = 1250;
       const existing = await EmployeeFundContribution.findOne({ employeeId, contributionType: 'BIRTHDAY', contributionYear: year });
       if (existing) throw { statusCode: 400, message: 'Birthday fund already collected for this year' };

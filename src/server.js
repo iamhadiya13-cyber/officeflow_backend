@@ -81,9 +81,6 @@ const start = async () => {
   await connectDB()
   const PORT = process.env.PORT || 3000
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
-
-  await budgetService.processBirthdayContributions()
-  setInterval(budgetService.processBirthdayContributions, 24 * 60 * 60 * 1000)
 }
 
 start()

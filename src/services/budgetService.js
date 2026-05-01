@@ -5,29 +5,7 @@ import { MonthlyBudget } from '../models/MonthlyBudget.js'
 import { ExpenseRequest } from '../models/ExpenseRequest.js'
 import { fromDecimal, toDecimal } from '../utils/validators.js'
 
-const processBirthdayContributions = async () => {
-  try {
-    const today = new Date()
-    const currentYear = today.getFullYear()
-    const users = await User.find({ isActive: true, dateOfBirth: { $ne: null } }).select('_id name dateOfBirth')
-    
-    for (const user of users) {
-      const dob = new Date(user.dateOfBirth)
-      const birthdayThisYear = new Date(currentYear, dob.getMonth(), dob.getDate())
 
-      if (birthdayThisYear <= today) {
-        const existing = await EmployeeFundContribution.findOne({ employeeId: user._id, contributionYear: currentYear })
-        if (!existing) {
-          await EmployeeFundContribution.create({ employeeId: user._id, amount: toDecimal(1200), contributionYear: currentYear, note: `Birthday contribution for ${user.name}` })
-          await EmployeeFund.findOneAndUpdate({}, { $inc: { balance: 1200 }, lastUpdatedAt: new Date() }, { upsert: true, new: true })
-          console.log(`Birthday contribution added for ${user.name}`)
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Birthday contribution error:', err.message)
-  }
-}
 
 const getCurrentBudgetData = async () => {
   try {
@@ -73,4 +51,4 @@ const getCurrentBudgetData = async () => {
   }
 }
 
-export const budgetService = { processBirthdayContributions, getCurrentBudgetData }
+export const budgetService = { getCurrentBudgetData }

@@ -26,9 +26,16 @@ export const fundService = {
       contributionType: 'JOINING' 
     }).populate('collectedBy', 'name');
 
-    // Aggregate Employee Fund Balance
-    const fund = await EmployeeFund.findOne();
-    const currentBalance = fund ? parseFloat(fund.balance.toString()) : 0;
+    // Aggregate Employee Fund Balance from actual contributions
+    const allContributions = await EmployeeFundContribution.find({});
+    const currentBalance = allContributions.reduce((sum, c) => sum + parseFloat(c.amount.toString()), 0);
+
+    // Sync it to EmployeeFund to fix any drift
+    await EmployeeFund.findOneAndUpdate(
+      {},
+      { balance: toDecimal(currentBalance), lastUpdatedAt: new Date() },
+      { upsert: true, new: true }
+    );
 
     const data = users.map(user => {
       const birthdayContrib = birthdayContributions.find(c => c.employeeId.toString() === user._id.toString());

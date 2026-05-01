@@ -57,6 +57,12 @@ const mapExpense = (d) => {
 
 export const normalizeRole = (role) => (role || '').toUpperCase().trim();
 
+const toPositiveInt = (value, fallback, max = 100) => {
+  const parsed = parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.min(parsed, max);
+};
+
 export const isPrivilegedExpenseRole = (role) => {
   const norm = normalizeRole(role);
   return norm === 'SUPER_ADMIN' || norm === 'ADMIN';
@@ -173,18 +179,22 @@ const getExpenses = async ({ userId, role, filters }) => {
   const { page = 1, limit = 10, sort_by = 'expenseDate', sort_order = 'desc' } = filters;
   let query = await buildFilterLogic(userId, role, filters);
 
-  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const maxLimit = filters.export_all === 'true' ? 10000 : 100;
+  const safePage = toPositiveInt(page, 1, 100000);
+  const safeLimit = toPositiveInt(limit, 10, maxLimit);
+  const skip = (safePage - 1) * safeLimit;
   const sortObj = { [sort_by]: sort_order === 'asc' ? 1 : -1 };
 
   const [data, total] = await Promise.all([
     ExpenseRequest.find(query)
+      .select('employeeId expenseType tripRequestId title description amount expenseDate isSettled settledBy settledAt isArchived archivedBy archivedAt archiveReason settlementHistory submittedAt createdAt updatedAt')
       .populate('employeeId', 'name department')
       .populate('settledBy', 'name')
       .populate('archivedBy', 'name')
       .populate('settlementHistory.performedBy', 'name')
       .sort(sortObj)
       .skip(skip)
-      .limit(parseInt(limit)),
+      .limit(safeLimit),
     ExpenseRequest.countDocuments(query)
   ]);
 
@@ -192,9 +202,9 @@ const getExpenses = async ({ userId, role, filters }) => {
     data: data.map(mapExpense),
     meta: {
       total,
-      page: parseInt(page),
-      limit: parseInt(limit),
-      totalPages: Math.ceil(total / parseInt(limit)),
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
     }
   };
 };
@@ -411,7 +421,9 @@ const getSettlements = async ({ employeeIds, year, month, quarter, page = 1, lim
     }
   }
 
-  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const safePage = toPositiveInt(page, 1, 100000);
+  const safeLimit = toPositiveInt(limit, 10, 100);
+  const skip = (safePage - 1) * safeLimit;
 
 
   const [data, total] = await Promise.all([
@@ -420,7 +432,7 @@ const getSettlements = async ({ employeeIds, year, month, quarter, page = 1, lim
       .populate('settledBy', 'name')
       .sort({ settledAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit)),
+      .limit(safeLimit),
     ExpenseRequest.countDocuments(query),
   ]);
 
@@ -444,9 +456,9 @@ const getSettlements = async ({ employeeIds, year, month, quarter, page = 1, lim
     }),
     meta: {
       total,
-      page: parseInt(page),
-      limit: parseInt(limit),
-      totalPages: Math.ceil(total / parseInt(limit)),
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
     },
   };
 };

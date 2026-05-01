@@ -12,6 +12,12 @@ const getAnnualLeaveType = async () => {
   return annualType;
 };
 
+const toPositiveInt = (value, fallback, max = 100) => {
+  const parsed = parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.min(parsed, max);
+};
+
 const getScopedUserIds = async ({ userId, role }) => {
   if (role === 'EMPLOYEE' || role === 'INTERN') {
     return [userId];
@@ -204,7 +210,9 @@ const getLeaveRequests = async ({ userId, role, filters }) => {
     }
   }
 
-  const skip = (page - 1) * limit;
+  const safePage = toPositiveInt(page, 1, 100000);
+  const safeLimit = toPositiveInt(limit, 10, 100);
+  const skip = (safePage - 1) * safeLimit;
 
   const [data, total] = await Promise.all([
     LeaveRequest.find(query)
@@ -213,15 +221,15 @@ const getLeaveRequests = async ({ userId, role, filters }) => {
       .populate('reviewedBy', 'name')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit)),
+      .limit(safeLimit),
     LeaveRequest.countDocuments(query)
   ]);
 
   return { 
     data: data.map(mapLeaveRequest), 
     total, 
-    page: parseInt(page), 
-    limit: parseInt(limit) 
+    page: safePage, 
+    limit: safeLimit 
   };
 };
 
@@ -327,7 +335,9 @@ const getOtherLeaveRequests = async ({ userId, role, filters }) => {
 
   if (status) query.status = status;
 
-  const skip = (page - 1) * limit;
+  const safePage = toPositiveInt(page, 1, 100000);
+  const safeLimit = toPositiveInt(limit, 10, 100);
+  const skip = (safePage - 1) * safeLimit;
 
   const [data, total] = await Promise.all([
     OtherLeaveRequest.find(query)
@@ -335,15 +345,15 @@ const getOtherLeaveRequests = async ({ userId, role, filters }) => {
       .populate('reviewedBy', 'name')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit)),
+      .limit(safeLimit),
     OtherLeaveRequest.countDocuments(query)
   ]);
 
   return { 
     data: data.map(mapLeaveRequest), 
     total, 
-    page: parseInt(page), 
-    limit: parseInt(limit) 
+    page: safePage, 
+    limit: safeLimit 
   };
 };
 

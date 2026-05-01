@@ -6,7 +6,7 @@ const exportExpenses = async (req, res) => {
   try {
     const { _id: userId, role } = req.user;
     // Get ALL matching expenses (no pagination limit)
-    const filters = { ...req.query, page: 1, limit: 10000 };
+    const filters = { ...req.query, page: 1, limit: 10000, export_all: 'true' };
     const result = await expenseService.getExpenses({ userId, role, filters });
 
     const workbook = new ExcelJS.Workbook();

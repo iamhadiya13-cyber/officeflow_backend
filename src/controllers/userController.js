@@ -1,6 +1,12 @@
 import { User } from '../models/User.js'
 import { successResponse, errorResponse } from '../utils/response.js'
 
+const toPositiveInt = (value, fallback, max = 100) => {
+  const parsed = parseInt(value, 10)
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback
+  return Math.min(parsed, max)
+}
+
 const getAll = async (req, res) => {
   try {
     const { role, _id: userId } = req.user
@@ -22,32 +28,43 @@ const getAll = async (req, res) => {
 
     // Removed manager scoping: all users see all users
 
-    const skip = (Number(page) - 1) * Number(limit)
+    const safePage = toPositiveInt(page, 1, 100000)
+    const safeLimit = toPositiveInt(limit, 10, 100)
+    const skip = (safePage - 1) * safeLimit
 
     const [users, total] = await Promise.all([
       User.find(query)
+        .select('name email role department managerId isActive dateOfBirth createdAt')
         .populate('managerId', 'name')
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(Number(limit)),
+        .limit(safeLimit)
+        .lean(),
       User.countDocuments(query)
     ])
 
     const data = users.map((user) => {
-      const item = user.toJSON()
       return {
-        ...item,
+        id: user._id?.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        department: user.department,
+        managerId: user.managerId?._id?.toString?.() || user.managerId?.toString?.() || null,
         manager_name: user.managerId?.name || '-',
-        is_active: item.isActive,
-        created_at: item.createdAt,
+        isActive: user.isActive,
+        is_active: user.isActive,
+        dateOfBirth: user.dateOfBirth,
+        createdAt: user.createdAt,
+        created_at: user.createdAt,
       }
     })
 
     return res.json(successResponse('Users loaded', data, {
       total,
-      page: Number(page),
-      limit: Number(limit),
-      totalPages: Math.ceil(total / Number(limit)),
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
     }))
   } catch (err) {
     return res.status(500).json(errorResponse(err.message))
@@ -143,7 +160,7 @@ const getEmployeeList = async (req, res) => {
     // Show all active users to all roles so they can filter expenses by anyone
     let query = { isActive: true };
 
-    const users = await User.find(query).select('name department role').sort({ name: 1 });
+    const users = await User.find(query).select('name department role').sort({ name: 1 }).lean();
     const list = users.map(u => ({ id: u._id.toString(), name: u.name, department: u.department || '', role: u.role }));
     return res.json(successResponse('Employee list', list));
   } catch (err) {

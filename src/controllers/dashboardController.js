@@ -6,10 +6,41 @@ import { successResponse, errorResponse } from '../utils/response.js'
 import * as expenseService from '../services/expenseService.js'
 import * as leaveService from '../services/leaveService.js'
 
+const DASHBOARD_CACHE_TTL_MS = 45 * 1000
+const dashboardCache = new Map()
+
+const getCacheKey = (name, req) => JSON.stringify({
+  name,
+  userId: req.user?._id?.toString(),
+  role: req.user?.role,
+  query: req.query,
+})
+
+const getCachedDashboardPayload = (key) => {
+  const cached = dashboardCache.get(key)
+  if (!cached || cached.expiresAt < Date.now()) {
+    dashboardCache.delete(key)
+    return null
+  }
+  return cached.payload
+}
+
+const setCachedDashboardPayload = (key, payload) => {
+  dashboardCache.set(key, {
+    payload,
+    expiresAt: Date.now() + DASHBOARD_CACHE_TTL_MS,
+  })
+}
+
 const getStats = async (req, res) => {
   try {
     const { _id: userId, role } = req.user
     const { month, year, scope = 'all', trend_mode = 'monthly' } = req.query
+    const cacheKey = getCacheKey('stats', req)
+    const cachedPayload = getCachedDashboardPayload(cacheKey)
+    if (cachedPayload) {
+      return res.json(successResponse('Stats loaded', cachedPayload))
+    }
 
     const now = new Date()
     const targetMonth = month ? parseInt(month) : null
@@ -115,7 +146,7 @@ const getStats = async (req, res) => {
     const settled = statusBreakdown.find(s => s._id === true);
     const unsettled = statusBreakdown.find(s => s._id === false);
 
-    return res.json(successResponse('Stats loaded', {
+    const payload = {
       kpis: {
         totalUsers,
         totalExpenses: totalExpenses[0]?.total || 0,
@@ -143,7 +174,9 @@ const getStats = async (req, res) => {
         { name: 'Settled', value: settled?.total || 0, count: settled?.count || 0 },
         { name: 'Unsettled', value: unsettled?.total || 0, count: unsettled?.count || 0 },
       ],
-    }));
+    };
+    setCachedDashboardPayload(cacheKey, payload)
+    return res.json(successResponse('Stats loaded', payload));
   } catch (err) {
     console.error('Dashboard error:', err)
     return res.status(500).json(errorResponse(err.message))
@@ -159,6 +192,11 @@ const ensurePrivilegedDashboardAccess = (req) => {
 const getAllStats = async (req, res) => {
   try {
     ensurePrivilegedDashboardAccess(req);
+    const cacheKey = getCacheKey('all-stats', req);
+    const cachedPayload = getCachedDashboardPayload(cacheKey);
+    if (cachedPayload) {
+      return res.json(successResponse('All stats loaded', cachedPayload));
+    }
     const now = new Date();
     const targetMonth = req.query.month ? parseInt(req.query.month) : now.getMonth() + 1;
     const targetYear = req.query.year ? parseInt(req.query.year) : now.getFullYear();
@@ -204,7 +242,7 @@ const getAllStats = async (req, res) => {
     const ytdTotal = ytd[0]?.total || 0;
     const ytdCount = ytd[0]?.count || 0;
 
-    return res.json(successResponse('All stats loaded', {
+    const payload = {
       ytd: ytdTotal,
       selectedMonth: selectedMonth[0]?.total || 0,
       unsettled: unsettled[0]?.total || 0,
@@ -212,7 +250,9 @@ const getAllStats = async (req, res) => {
       avgExpense: ytdCount > 0 ? Math.round(ytdTotal / ytdCount) : 0,
       topCategory: topCategoryAgg[0]?._id || 'N/A',
       pendingLeaves,
-    }));
+    };
+    setCachedDashboardPayload(cacheKey, payload);
+    return res.json(successResponse('All stats loaded', payload));
   } catch (err) {
     return res.status(err.statusCode || 500).json(errorResponse(err.message));
   }
@@ -221,12 +261,17 @@ const getAllStats = async (req, res) => {
 const getAllLeave = async (req, res) => {
   try {
     ensurePrivilegedDashboardAccess(req);
+    const cacheKey = getCacheKey('all-leave', req);
+    const cachedPayload = getCachedDashboardPayload(cacheKey);
+    if (cachedPayload) {
+      return res.json(successResponse('All leave balances loaded', cachedPayload));
+    }
     const currentYear = new Date().getFullYear();
     const employees = await User.find({ role: 'EMPLOYEE', isActive: true }).sort({ name: 1 });
     const balances = await leaveService.getLeaveBalances({ userId: req.user._id, role: 'SUPER_ADMIN' });
     const balanceMap = new Map(balances.map((balance) => [balance.user_id, balance]));
 
-    return res.json(successResponse('All leave balances loaded', employees.map((employee) => {
+    const payload = employees.map((employee) => {
       const balance = balanceMap.get(employee._id.toString());
       return {
         userId: employee._id.toString(),
@@ -236,7 +281,9 @@ const getAllLeave = async (req, res) => {
         usedLeave: balance?.used_days ?? 0,
         remainingLeave: balance?.remaining_days ?? 12,
       };
-    })));
+    });
+    setCachedDashboardPayload(cacheKey, payload);
+    return res.json(successResponse('All leave balances loaded', payload));
   } catch (err) {
     return res.status(err.statusCode || 500).json(errorResponse(err.message));
   }
@@ -245,6 +292,11 @@ const getAllLeave = async (req, res) => {
 const getAllExpenseTrend = async (req, res) => {
   try {
     ensurePrivilegedDashboardAccess(req);
+    const cacheKey = getCacheKey('all-expense-trend', req);
+    const cachedPayload = getCachedDashboardPayload(cacheKey);
+    if (cachedPayload) {
+      return res.json(successResponse('All expense trend loaded', cachedPayload));
+    }
     const now = new Date();
     const targetYear = req.query.year ? parseInt(req.query.year) : now.getFullYear();
     const startOfYear = new Date(targetYear, 0, 1);
@@ -270,6 +322,7 @@ const getAllExpenseTrend = async (req, res) => {
       };
     });
 
+    setCachedDashboardPayload(cacheKey, data);
     return res.json(successResponse('All expense trend loaded', data));
   } catch (err) {
     return res.status(err.statusCode || 500).json(errorResponse(err.message));

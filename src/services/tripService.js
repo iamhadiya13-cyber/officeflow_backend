@@ -1,9 +1,15 @@
-import TripRequest from '../models/TripRequest.js';
+import { TripRequest } from '../models/TripRequest.js';
 import TripItinerary from '../models/TripItinerary.js';
-import ExpenseRequest from '../models/ExpenseRequest.js';
-import User from '../models/User.js';
+import { ExpenseRequest } from '../models/ExpenseRequest.js';
+import { User } from '../models/User.js';
 import { calculateDays } from '../utils/dateHelper.js';
 import mongoose from 'mongoose';
+
+const toPositiveInt = (value, fallback, max = 100) => {
+  const parsed = parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.min(parsed, max);
+};
 
 const getTrips = async ({ userId, role, filters }) => {
   const { status, from, to, page = 1, limit = 10 } = filters;
@@ -31,7 +37,9 @@ const getTrips = async ({ userId, role, filters }) => {
     }
   }
 
-  const skip = (page - 1) * limit;
+  const safePage = toPositiveInt(page, 1, 100000);
+  const safeLimit = toPositiveInt(limit, 10, 100);
+  const skip = (safePage - 1) * safeLimit;
 
   const [data, total] = await Promise.all([
     TripRequest.find(query)
@@ -39,7 +47,7 @@ const getTrips = async ({ userId, role, filters }) => {
       .populate('reviewedBy', 'name')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit)),
+      .limit(safeLimit),
     TripRequest.countDocuments(query)
   ]);
 
@@ -54,8 +62,8 @@ const getTrips = async ({ userId, role, filters }) => {
       };
     }), 
     total, 
-    page: parseInt(page), 
-    limit: parseInt(limit) 
+    page: safePage, 
+    limit: safeLimit 
   };
 };
 

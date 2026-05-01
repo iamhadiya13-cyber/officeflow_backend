@@ -1,3 +1,5 @@
 import mongoose from 'mongoose'
 const schema = new mongoose.Schema({ employeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, title: { type: String, required: true }, destination: { type: String, required: true }, purpose: { type: String, required: true }, departureDate: { type: Date, required: true }, returnDate: { type: Date, required: true }, totalDays: { type: Number, required: true }, estimatedBudget: { type: mongoose.Types.Decimal128, required: true }, actualTotal: { type: mongoose.Types.Decimal128, default: mongoose.Types.Decimal128.fromString('0') }, status: { type: String, enum: ['pending','approved','rejected','completed','cancelled'], default: 'pending' }, reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }, reviewNote: String }, { timestamps: true })
+schema.index({ employeeId: 1, status: 1, createdAt: -1 })
+schema.index({ status: 1, createdAt: -1 })
 export const TripRequest = mongoose.model('TripRequest', schema)

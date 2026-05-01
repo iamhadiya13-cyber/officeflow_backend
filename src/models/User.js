@@ -36,5 +36,9 @@ userSchema.set('toJSON', {
   }
 })
 
+userSchema.index({ role: 1, isActive: 1, name: 1 })
+userSchema.index({ managerId: 1, isActive: 1 })
+userSchema.index({ name: 'text', email: 'text', department: 'text' })
+
 const User = mongoose.model('User', userSchema)
 export { User }

@@ -13,7 +13,7 @@ const getAnnualLeaveType = async () => {
 };
 
 const getScopedUserIds = async ({ userId, role }) => {
-  if (role === 'EMPLOYEE') {
+  if (role === 'EMPLOYEE' || role === 'INTERN') {
     return [userId];
   }
 

@@ -316,10 +316,13 @@ const getOtherLeaveRequests = async ({ userId, role, filters }) => {
   const { status, page = 1, limit = 10 } = filters;
   let query = {};
 
-  if (role === 'EMPLOYEE') {
-    query.employeeId = userId;
+  if (role === 'SUPER_ADMIN') {
+    // sees all
   } else if (role === 'MANAGER') {
     query.employeeId = { $in: await getScopedUserIds({ userId, role }) };
+  } else {
+    // EMPLOYEE, INTERN — see only their own
+    query.employeeId = userId;
   }
 
   if (status) query.status = status;

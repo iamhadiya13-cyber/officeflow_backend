@@ -32,12 +32,19 @@ const getScopedUserIds = async ({ userId, role }) => {
 };
 
 const mapLeaveBalance = (balance) => {
+  const raw = balance.toObject ? balance.toObject({ virtuals: false }) : balance;
   const r = balance.toJSON();
   const defaultAllowed = r.leaveTypeId?.daysAllowed || 0;
+  const userId =
+    raw.userId?._id?.toString?.() ||
+    r.userId?.id?.toString?.() ||
+    r.userId?._id?.toString?.() ||
+    (typeof r.userId === 'string' ? r.userId : null);
+
   return {
     ...r,
     id: r._id?.toString?.() || r.id,
-    user_id: r.userId?._id?.toString?.() || r.userId?.toString?.(),
+    user_id: userId,
     leave_type_id: r.leaveTypeId?._id?.toString?.() || r.leaveTypeId?.toString?.(),
     used_days: r.usedDays || 0,
     remaining_days: r.remainingDays || 0,

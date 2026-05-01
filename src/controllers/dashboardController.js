@@ -134,7 +134,7 @@ const getStats = async (req, res) => {
         extraLeaves: leaveBalance?.extraLeaves || 0,
       },
       monthlyTrend,
-      categoryBreakdown,
+      categoryBreakdown: categoryBreakdown.map(c => ({ name: c.category, value: c.total, count: c.count })),
       recentExpenses,
       topSpenders,
       trendMode: trend_mode,

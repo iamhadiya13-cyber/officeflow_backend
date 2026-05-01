@@ -1,7 +1,7 @@
 import mongoose from 'mongoose'
 const schema = new mongoose.Schema({ 
   employeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, 
-  contributionType: { type: String, enum: ['BIRTHDAY', 'PROMOTION'], default: 'BIRTHDAY' },
+  contributionType: { type: String, enum: ['BIRTHDAY', 'JOINING'], default: 'BIRTHDAY' },
   amount: { type: mongoose.Types.Decimal128, required: true }, 
   contributionYear: { type: Number }, 
   contributedAt: { type: Date, default: Date.now }, 

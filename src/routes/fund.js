@@ -9,5 +9,6 @@ router.use(authenticate);
 // Everyone can view team fund status? The user said "admin or manager complete select payment", but didn't specify who can view. Let's let all see, but only admin/manager can collect.
 router.get('/', fundController.getTeamFundStatus);
 router.post('/collect', authorize('SUPER_ADMIN', 'MANAGER'), fundController.collectFund);
+router.post('/revert', authorize('SUPER_ADMIN', 'MANAGER'), fundController.revertFund);
 
 export default router;

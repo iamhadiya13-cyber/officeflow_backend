@@ -22,5 +22,17 @@ export const fundController = {
       console.error(err);
       res.status(err.statusCode || 500).json({ success: false, message: err.message });
     }
+  },
+
+  revertFund: async (req, res) => {
+    try {
+      const { id } = req.body;
+      const adminId = req.user._id;
+      const result = await fundService.revertFund({ id, adminId });
+      res.json({ success: true, data: result });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({ success: false, message: err.message });
+    }
   }
 };

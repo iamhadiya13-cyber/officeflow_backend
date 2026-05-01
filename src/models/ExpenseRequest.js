@@ -1,7 +1,7 @@
 import mongoose from 'mongoose'
 const schema = new mongoose.Schema({
   employeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  expenseType: { type: String, enum: ['FOOD', 'OTHER', 'TRIP'], required: true },
+  expenseType: { type: String, enum: ['FOOD', 'OTHER', 'TRIP', 'TEAM_FUND'], required: true },
   tripRequestId: { type: mongoose.Schema.Types.ObjectId, ref: 'TripRequest', default: null },
   title: { type: String, required: true, trim: true },
   description: String,

@@ -21,9 +21,9 @@ export const fundService = {
       contributionYear: year 
     }).populate('collectedBy', 'name');
 
-    // Fetch all PROMOTION contributions (no year required)
-    const promotionContributions = await EmployeeFundContribution.find({ 
-      contributionType: 'PROMOTION' 
+    // Fetch all JOINING contributions (no year required)
+    const joiningContributions = await EmployeeFundContribution.find({ 
+      contributionType: 'JOINING' 
     }).populate('collectedBy', 'name');
 
     // Aggregate Employee Fund Balance
@@ -32,7 +32,7 @@ export const fundService = {
 
     const data = users.map(user => {
       const birthdayContrib = birthdayContributions.find(c => c.employeeId.toString() === user._id.toString());
-      const promotionContrib = promotionContributions.find(c => c.employeeId.toString() === user._id.toString());
+      const joiningContrib = joiningContributions.find(c => c.employeeId.toString() === user._id.toString());
 
       return {
         id: user._id.toString(),
@@ -45,9 +45,11 @@ export const fundService = {
         birthdayCollectedAt: birthdayContrib ? birthdayContrib.contributedAt : null,
         birthdayCollectedBy: birthdayContrib?.collectedBy?.name || null,
         
-        promotionCollected: !!promotionContrib,
-        promotionCollectedAt: promotionContrib ? promotionContrib.contributedAt : null,
-        promotionCollectedBy: promotionContrib?.collectedBy?.name || null,
+        joiningCollected: !!joiningContrib,
+        joiningCollectedAt: joiningContrib ? joiningContrib.contributedAt : null,
+        joiningCollectedBy: joiningContrib?.collectedBy?.name || null,
+        joiningId: joiningContrib?._id || null,
+        birthdayId: birthdayContrib?._id || null,
       };
     });
 
@@ -76,17 +78,17 @@ export const fundService = {
         collectedBy: adminId,
         note: `Birthday collection for ${user.name} (${year})`
       });
-    } else if (type === 'PROMOTION') {
+    } else if (type === 'JOINING') {
       amount = 1000;
-      const existing = await EmployeeFundContribution.findOne({ employeeId, contributionType: 'PROMOTION' });
-      if (existing) throw { statusCode: 400, message: 'Promotion fund already collected' };
+      const existing = await EmployeeFundContribution.findOne({ employeeId, contributionType: 'JOINING' });
+      if (existing) throw { statusCode: 400, message: 'Joining fund already collected' };
 
       await EmployeeFundContribution.create({
         employeeId,
-        contributionType: 'PROMOTION',
+        contributionType: 'JOINING',
         amount: toDecimal(amount),
         collectedBy: adminId,
-        note: `Promotion (Intern to Full-Time) collection for ${user.name}`
+        note: `Joining (Intern to Full-Time) collection for ${user.name}`
       });
     } else {
       throw { statusCode: 400, message: 'Invalid contribution type' };
@@ -100,5 +102,22 @@ export const fundService = {
     );
 
     return { success: true, message: 'Fund collected successfully' };
+  },
+
+  revertFund: async ({ id, adminId }) => {
+    const contribution = await EmployeeFundContribution.findById(id);
+    if (!contribution) throw { statusCode: 404, message: 'Contribution not found' };
+
+    const amountToDeduct = parseFloat(contribution.amount.toString());
+
+    await EmployeeFundContribution.findByIdAndDelete(id);
+
+    await EmployeeFund.findOneAndUpdate(
+      {}, 
+      { $inc: { balance: -amountToDeduct }, lastUpdatedAt: new Date(), lastUpdatedBy: adminId }, 
+      { new: true }
+    );
+
+    return { success: true, message: 'Fund collection reverted successfully' };
   }
 };

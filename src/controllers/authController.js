@@ -7,8 +7,8 @@ import { successResponse, errorResponse } from '../utils/response.js'
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'none',
+  secure: true,
   path: '/'
 }
 

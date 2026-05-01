@@ -23,7 +23,7 @@ import { toDecimal } from '../utils/validators.js'
 const seed = async () => {
   await connectDB()
   console.log('Clearing all collections...')
-  
+
   await Promise.all([
     User.deleteMany({}),
     RefreshToken.deleteMany({}),
@@ -45,15 +45,16 @@ const seed = async () => {
   const passwordHash = await bcrypt.hash('Admin@1234', 12)
   const currentYear = new Date().getFullYear()
 
-  const admin = await User.create({ name: 'Super Admin', email: 'admin@company.com', passwordHash, role: 'SUPER_ADMIN', department: 'Management', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1990-01-15') })
-  const manager1 = await User.create({ name: 'Rahul Sharma', email: 'rahul@company.com', passwordHash, role: 'MANAGER', department: 'Engineering', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1988-03-10') })
-  const manager2 = await User.create({ name: 'Priya Verma', email: 'priya@company.com', passwordHash, role: 'MANAGER', department: 'Operations', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1992-07-22') })
-  const emp1 = await User.create({ name: 'Sneha Patel', email: 'sneha@company.com', passwordHash, role: 'EMPLOYEE', department: 'Engineering', managerId: manager1._id, isActive: true, mustChangePassword: false, dateOfBirth: new Date('1995-03-05') })
-  const emp2 = await User.create({ name: 'Amit Kumar', email: 'amit@company.com', passwordHash, role: 'EMPLOYEE', department: 'Engineering', managerId: manager1._id, isActive: true, mustChangePassword: false, dateOfBirth: new Date('1993-11-18') })
-  const emp3 = await User.create({ name: 'Anita Desai', email: 'anita@company.com', passwordHash, role: 'EMPLOYEE', department: 'Operations', managerId: manager2._id, isActive: true, mustChangePassword: false, dateOfBirth: new Date('1991-02-28') })
-  const emp4 = await User.create({ name: 'Vikram Mehta', email: 'vikram@company.com', passwordHash, role: 'EMPLOYEE', department: 'Operations', managerId: manager2._id, isActive: true, mustChangePassword: false, dateOfBirth: new Date('1994-08-14') })
-  
-  const allUsers = [admin, manager1, manager2, emp1, emp2, emp3, emp4]
+  const admin = await User.create({ name: 'Nikunj', email: 'nikunj@flyticsglob.com', passwordHash, role: 'SUPER_ADMIN', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1990-01-15') })
+  const admin2 = await User.create({ name: 'harsh', email: 'harsh@flyticsglob.com', passwordHash, role: 'MANAGER', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1988-03-10') })
+  const emp1 = await User.create({ name: 'Ghanshyam', email: 'ghanshyam@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1995-03-05') })
+  const emp2 = await User.create({ name: 'Naitik', email: 'naitik@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1993-11-18') })
+  const emp3 = await User.create({ name: 'Kathan', email: 'kathan@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1991-02-28') })
+  const emp4 = await User.create({ name: 'Yash', email: 'yash@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1994-08-14') })
+  const emp5 = await User.create({ name: 'Parth', email: 'parth@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1994-08-14') })
+  const emp6 = await User.create({ name: 'kamal', email: 'kamal@flyticsglob.com', passwordHash, role: 'EMPLOYEE', isActive: true, mustChangePassword: false, dateOfBirth: new Date('1994-08-14') })
+
+  const allUsers = [admin, admin2, emp1, emp2, emp3, emp4]
 
   console.log('Creating leave types...')
   const annualLeave = await LeaveType.create({ name: 'Annual Leave', daysAllowed: 12, carryForward: false })
@@ -74,17 +75,16 @@ const seed = async () => {
   console.log('  SEEDED LOGIN CREDENTIALS')
   console.log('================================================')
   console.log('  SUPER ADMIN')
-  console.log('  Email    : admin@company.com')
+  console.log('  Email    : nikunj@flyticsglob.com')
   console.log('  Password : Admin@1234')
   console.log('  Role     : SUPER_ADMIN')
-  console.log('\n  MANAGERS')
-  console.log('  Email    : rahul@company.com  | Role: MANAGER | Dept: Engineering')
-  console.log('  Email    : priya@company.com  | Role: MANAGER | Dept: Operations')
+  console.log('\n  ADMIN / MANAGER')
+  console.log('  Email    : kamal@flyticsglob.com  | Role: MANAGER')
   console.log('\n  EMPLOYEES')
-  console.log('  Email    : sneha@company.com  | Dept: Engineering')
-  console.log('  Email    : amit@company.com   | Dept: Engineering')
-  console.log('  Email    : anita@company.com  | Dept: Operations')
-  console.log('  Email    : vikram@company.com | Dept: Operations')
+  console.log('  Email    : ghanshyam@flyticsglob.com')
+  console.log('  Email    : naitik@flyticsglob.com')
+  console.log('  Email    : kathan@flyticsglob.com')
+  console.log('  Email    : yash@flyticsglob.com')
   console.log('\n  All passwords: Admin@1234')
   console.log('  Login at: http://localhost:5173/login')
   console.log('================================================\n')

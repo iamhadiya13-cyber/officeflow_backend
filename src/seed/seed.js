@@ -93,8 +93,7 @@ const seed = async () => {
   console.log('Initializing employee fund...')
   await EmployeeFund.create({ balance: toDecimal(0) })
 
-  console.log('Processing birthday contributions...')
-  await budgetService.processBirthdayContributions()
+
 
   console.log('Creating expenses from seed data...')
   const expenseData = [

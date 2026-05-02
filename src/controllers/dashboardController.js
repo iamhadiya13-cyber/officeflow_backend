@@ -34,8 +34,9 @@ const setCachedDashboardPayload = (key, payload) => {
 
 const getStats = async (req, res) => {
   try {
+    await expenseService.ensureQuarterlySnapshots()
     const { _id: userId, role } = req.user
-    const { month, year, scope = 'all', trend_mode = 'monthly' } = req.query
+    const { month, quarter, year, scope = 'all', trend_mode = 'monthly', period_mode = 'monthly' } = req.query
     const cacheKey = getCacheKey('stats', req)
     const cachedPayload = getCachedDashboardPayload(cacheKey)
     if (cachedPayload) {
@@ -44,20 +45,27 @@ const getStats = async (req, res) => {
 
     const now = new Date()
     const targetMonth = month ? parseInt(month) : null
+    const targetQuarter = quarter ? parseInt(quarter) : Math.floor((now.getMonth()) / 3) + 1
     const targetYear = year ? parseInt(year) : now.getFullYear()
+    const isQuarterlyPeriod = period_mode === 'quarterly'
 
     const startOfYear = new Date(targetYear, 0, 1)
     const endOfYear = new Date(targetYear, 11, 31, 23, 59, 59, 999)
-    const startOfPeriod = targetMonth ? new Date(targetYear, targetMonth - 1, 1) : startOfYear
-    const endOfPeriod = targetMonth ? new Date(targetYear, targetMonth, 0, 23, 59, 59, 999) : endOfYear
+    const quarterRange = expenseService.getQuarterRange(targetYear, targetQuarter)
+    const startOfPeriod = isQuarterlyPeriod
+      ? quarterRange.start
+      : targetMonth ? new Date(targetYear, targetMonth - 1, 1) : startOfYear
+    const endOfPeriod = isQuarterlyPeriod
+      ? quarterRange.end
+      : targetMonth ? new Date(targetYear, targetMonth, 0, 23, 59, 59, 999) : endOfYear
 
     // Common data: monthly trend, category breakdown, recent expenses
     const [monthlyTrend, categoryBreakdown, recentExpenses, employeeLeaveBalances] = await Promise.all([
       trend_mode === 'quarterly'
         ? expenseService.getQuarterlyTrend({ userId, role, year: targetYear, scopeMode: scope })
         : expenseService.getMonthlyTrend({ userId, role, months: 6, scopeMode: scope }),
-      expenseService.getCategoryBreakdown({ userId, role, month: targetMonth, year: targetYear, scopeMode: scope }),
-      expenseService.getRecentExpenses({ userId, role, limit: 5, scopeMode: scope }),
+      expenseService.getCategoryBreakdown({ userId, role, month: isQuarterlyPeriod ? null : targetMonth, quarter: isQuarterlyPeriod ? targetQuarter : null, year: targetYear, scopeMode: scope }),
+      expenseService.getRecentExpenses({ userId, role, limit: 5, scopeMode: scope, startDate: startOfPeriod, endDate: endOfPeriod }),
       scope === 'all' && role !== 'EMPLOYEE'
         ? leaveService.getLeaveBalances({ userId, role })
         : Promise.resolve([]),
@@ -91,11 +99,11 @@ const getStats = async (req, res) => {
         { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } }, count: { $sum: 1 } } }
       ]),
       ExpenseRequest.aggregate([
-        { $match: { ...matchBase, isSettled: false, expenseDate: { $gte: startOfYear, $lte: endOfYear } } },
+        { $match: { ...matchBase, isSettled: false, expenseDate: { $gte: startOfPeriod, $lte: endOfPeriod } } },
         { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } }, count: { $sum: 1 } } }
       ]),
       ExpenseRequest.aggregate([
-        { $match: { ...matchBase, isSettled: true, expenseDate: { $gte: startOfYear, $lte: endOfYear } } },
+        { $match: { ...matchBase, isSettled: true, expenseDate: { $gte: startOfPeriod, $lte: endOfPeriod } } },
         { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } }, count: { $sum: 1 } } }
       ]),
       ExpenseRequest.aggregate([
@@ -112,12 +120,12 @@ const getStats = async (req, res) => {
               : userId,
             status: 'pending'
           }),
-      expenseService.getTopSpenders({ role, userId, month: targetMonth, year: targetYear, limit: 5, scopeMode: scope }),
+      expenseService.getTopSpenders({ role, userId, month: isQuarterlyPeriod ? null : targetMonth, quarter: isQuarterlyPeriod ? targetQuarter : null, year: targetYear, limit: 5, scopeMode: scope }),
       scope === 'me'
         ? leaveService.getLeaveBalanceInfo(userId)
         : leaveService.getLeaveBalances({ userId, role }),
       ExpenseRequest.aggregate([
-        { $match: { ...matchBase, expenseDate: { $gte: startOfYear, $lte: endOfYear } } },
+        { $match: { ...matchBase, expenseDate: { $gte: startOfPeriod, $lte: endOfPeriod } } },
         {
           $group: {
             _id: '$isSettled',

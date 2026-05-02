@@ -4,6 +4,7 @@ import { ExpenseSettlement } from '../models/ExpenseSettlement.js';
 import { TripRequest } from '../models/TripRequest.js';
 import { MonthlyBudget } from '../models/MonthlyBudget.js';
 import { User } from '../models/User.js';
+import { QuarterlyExpenseSnapshot } from '../models/QuarterlyExpenseSnapshot.js';
 import { getQuarter } from '../utils/dateHelper.js';
 
 // Helper to convert a Mongoose doc to a clean frontend-friendly object
@@ -63,6 +64,28 @@ const toPositiveInt = (value, fallback, max = 100) => {
   return Math.min(parsed, max);
 };
 
+const getQuarterRange = (year, quarter) => {
+  const q = parseInt(quarter, 10);
+  const y = parseInt(year, 10);
+  const startMonth = (q - 1) * 3;
+  return {
+    start: new Date(y, startMonth, 1),
+    end: new Date(y, startMonth + 3, 0, 23, 59, 59, 999),
+  };
+};
+
+const getQuarterLabel = (quarter) => {
+  const labels = ['Q1 (Jan-Mar)', 'Q2 (Apr-Jun)', 'Q3 (Jul-Sep)', 'Q4 (Oct-Dec)'];
+  return labels[Number(quarter) - 1] || `Q${quarter}`;
+};
+
+const getGraceCutoff = (endDate) => {
+  const cutoff = new Date(endDate);
+  cutoff.setDate(cutoff.getDate() + 15);
+  cutoff.setHours(23, 59, 59, 999);
+  return cutoff;
+};
+
 export const isPrivilegedExpenseRole = (role) => {
   const norm = normalizeRole(role);
   return norm === 'SUPER_ADMIN' || norm === 'ADMIN';
@@ -101,7 +124,7 @@ export const applyExpenseScope = async (query, userId, rawRole, context = 'list'
 const buildFilterLogic = async (userId, role, filters) => {
   const {
     is_settled, expense_type, from, to, search,
-    month, year, min_amount, max_amount,
+    month, quarter, year, min_amount, max_amount,
     is_archived = 'false', employee_ids, scope
   } = filters;
 
@@ -122,7 +145,7 @@ const buildFilterLogic = async (userId, role, filters) => {
   }
 
   // Date filtering — use expenseDate for user-facing filters
-  if (from || to || month || year) {
+  if (from || to || month || quarter || year) {
     query.expenseDate = {};
     if (from) query.expenseDate.$gte = new Date(from);
     if (to) {
@@ -131,7 +154,14 @@ const buildFilterLogic = async (userId, role, filters) => {
       query.expenseDate.$lte = toDate;
     }
 
-    if (month && year) {
+    if (quarter && year) {
+      const q = parseInt(quarter);
+      const y = parseInt(year);
+      if (!isNaN(q) && q >= 1 && q <= 4 && !isNaN(y)) {
+        const { start, end } = getQuarterRange(y, q);
+        query.expenseDate = { $gte: start, $lte: end };
+      }
+    } else if (month && year) {
       const m = parseInt(month);
       const y = parseInt(year);
       if (!isNaN(m) && !isNaN(y)) {
@@ -176,6 +206,7 @@ const buildFilterLogic = async (userId, role, filters) => {
 };
 
 const getExpenses = async ({ userId, role, filters }) => {
+  await ensureQuarterlySnapshots();
   const { page = 1, limit = 10, sort_by = 'expenseDate', sort_order = 'desc' } = filters;
   let query = await buildFilterLogic(userId, role, filters);
 
@@ -461,6 +492,124 @@ const getSettlements = async ({ employeeIds, year, month, quarter, page = 1, lim
       totalPages: Math.ceil(total / safeLimit),
     },
   };
+};
+
+const buildQuarterSnapshotPayload = async ({ year, quarter }) => {
+  const { start, end } = getQuarterRange(year, quarter);
+  const graceCutoff = getGraceCutoff(end);
+
+  const [summary, categoryTotals, statusTotals] = await Promise.all([
+    ExpenseRequest.aggregate([
+      { $match: { isArchived: false, expenseDate: { $gte: start, $lte: end } } },
+      {
+        $group: {
+          _id: null,
+          totalExpense: { $sum: { $toDouble: '$amount' } },
+          expenseCount: { $sum: 1 },
+          settledTotal: { $sum: { $cond: [{ $eq: ['$isSettled', true] }, { $toDouble: '$amount' }, 0] } },
+          unsettledTotal: { $sum: { $cond: [{ $eq: ['$isSettled', false] }, { $toDouble: '$amount' }, 0] } },
+        }
+      }
+    ]),
+    ExpenseRequest.aggregate([
+      { $match: { isArchived: false, expenseDate: { $gte: start, $lte: end } } },
+      { $group: { _id: '$expenseType', total: { $sum: { $toDouble: '$amount' } }, count: { $sum: 1 } } },
+      { $sort: { total: -1 } }
+    ]),
+    ExpenseRequest.aggregate([
+      { $match: { isArchived: false, expenseDate: { $gte: start, $lte: end } } },
+      { $group: { _id: '$isSettled', total: { $sum: { $toDouble: '$amount' } }, count: { $sum: 1 } } }
+    ]),
+  ]);
+
+  return {
+    year: parseInt(year, 10),
+    quarter: parseInt(quarter, 10),
+    startDate: start,
+    endDate: end,
+    graceCutoff,
+    totalExpense: summary[0]?.totalExpense || 0,
+    expenseCount: summary[0]?.expenseCount || 0,
+    settledTotal: summary[0]?.settledTotal || 0,
+    unsettledTotal: summary[0]?.unsettledTotal || 0,
+    categoryTotals: categoryTotals.map((item) => ({ category: item._id, total: item.total, count: item.count })),
+    statusTotals: statusTotals.map((item) => ({ status: item._id ? 'settled' : 'unsettled', total: item.total, count: item.count })),
+    topCategory: categoryTotals[0]?._id || 'N/A',
+  };
+};
+
+const ensureQuarterlySnapshots = async (now = new Date()) => {
+  const earliest = await ExpenseRequest.findOne({ isArchived: false }).sort({ expenseDate: 1 }).select('expenseDate').lean();
+  const startYear = earliest?.expenseDate ? new Date(earliest.expenseDate).getFullYear() : now.getFullYear();
+  const currentYear = now.getFullYear();
+
+  for (let year = startYear; year <= currentYear; year++) {
+    for (let quarter = 1; quarter <= 4; quarter++) {
+      const { end } = getQuarterRange(year, quarter);
+      const graceCutoff = getGraceCutoff(end);
+      if (graceCutoff > now) continue;
+
+      const exists = await QuarterlyExpenseSnapshot.exists({ year, quarter });
+      if (exists) continue;
+
+      try {
+        await QuarterlyExpenseSnapshot.create(await buildQuarterSnapshotPayload({ year, quarter }));
+      } catch (err) {
+        if (err.code !== 11000) throw err;
+      }
+    }
+  }
+};
+
+const mapQuarterSnapshot = (snapshot) => {
+  const obj = snapshot.toJSON ? snapshot.toJSON() : snapshot;
+  return {
+    id: obj._id?.toString?.() || obj.id,
+    year: obj.year,
+    quarter: obj.quarter,
+    label: `${getQuarterLabel(obj.quarter)} ${obj.year}`,
+    startDate: obj.startDate,
+    endDate: obj.endDate,
+    graceCutoff: obj.graceCutoff,
+    totalExpense: obj.totalExpense || 0,
+    expenseCount: obj.expenseCount || 0,
+    settledTotal: obj.settledTotal || 0,
+    unsettledTotal: obj.unsettledTotal || 0,
+    categoryTotals: obj.categoryTotals || [],
+    statusTotals: obj.statusTotals || [],
+    topCategory: obj.topCategory || 'N/A',
+    createdAt: obj.createdAt,
+  };
+};
+
+const getQuarterSnapshots = async ({ year, quarter } = {}) => {
+  await ensureQuarterlySnapshots();
+  const query = {};
+  if (year) query.year = parseInt(year, 10);
+  if (quarter) query.quarter = parseInt(quarter, 10);
+
+  const snapshots = await QuarterlyExpenseSnapshot.find(query).sort({ year: -1, quarter: -1 });
+  return snapshots.map(mapQuarterSnapshot);
+};
+
+const getExpenseYears = async () => {
+  const nowYear = new Date().getFullYear();
+  const result = await ExpenseRequest.aggregate([
+    { $match: { expenseDate: { $ne: null } } },
+    {
+      $group: {
+        _id: null,
+        minYear: { $min: { $year: '$expenseDate' } },
+        maxYear: { $max: { $year: '$expenseDate' } },
+      }
+    }
+  ]);
+
+  const minYear = result[0]?.minYear || nowYear;
+  const maxYear = Math.max(result[0]?.maxYear || nowYear, nowYear);
+  const years = [];
+  for (let year = maxYear; year >= minYear; year--) years.push(year);
+  return years;
 };
 
 
@@ -851,8 +1000,7 @@ const getQuarterlyTrend = async ({ userId, role, year, scopeMode = 'all' }) => {
 
   let matchQuery = {
     isArchived: false,
-    expenseDate: { $gte: startDate, $lte: endDate },
-    expenseType: { $in: ['FOOD', 'OTHER'] }
+    expenseDate: { $gte: startDate, $lte: endDate }
   };
   matchQuery = await applyExpenseScope(matchQuery, userId, role, 'dashboard', scopeMode);
 
@@ -895,12 +1043,15 @@ const getQuarterlyTrend = async ({ userId, role, year, scopeMode = 'all' }) => {
   });
 };
 
-const getCategoryBreakdown = async ({ userId, role, month, year, scopeMode = 'all' }) => {
+const getCategoryBreakdown = async ({ userId, role, month, quarter, year, scopeMode = 'all' }) => {
   const now = new Date();
   const y = year ? parseInt(year) : now.getFullYear();
   let matchQuery = { isArchived: false };
 
-  if (month) {
+  if (quarter) {
+    const { start, end } = getQuarterRange(y, parseInt(quarter));
+    matchQuery.expenseDate = { $gte: start, $lte: end };
+  } else if (month) {
     const m = parseInt(month);
     matchQuery.expenseDate = {
       $gte: new Date(y, m - 1, 1),
@@ -933,8 +1084,11 @@ const getCategoryBreakdown = async ({ userId, role, month, year, scopeMode = 'al
   }));
 };
 
-const getRecentExpenses = async ({ userId, role, limit = 5, scopeMode = 'all' }) => {
+const getRecentExpenses = async ({ userId, role, limit = 5, scopeMode = 'all', startDate, endDate }) => {
   let matchQuery = { isArchived: false };
+  if (startDate && endDate) {
+    matchQuery.expenseDate = { $gte: startDate, $lte: endDate };
+  }
   matchQuery = await applyExpenseScope(matchQuery, userId, role, 'dashboard', scopeMode);
 
   const data = await ExpenseRequest.find(matchQuery)
@@ -946,12 +1100,15 @@ const getRecentExpenses = async ({ userId, role, limit = 5, scopeMode = 'all' })
   return data.map(mapExpense);
 };
 
-const getTopSpenders = async ({ role, userId, month, year, limit = 5, scopeMode = 'all' }) => {
+const getTopSpenders = async ({ role, userId, month, quarter, year, limit = 5, scopeMode = 'all' }) => {
   const now = new Date();
   const y = year ? parseInt(year) : now.getFullYear();
   let matchQuery = { isArchived: false };
 
-  if (month) {
+  if (quarter) {
+    const { start, end } = getQuarterRange(y, parseInt(quarter));
+    matchQuery.expenseDate = { $gte: start, $lte: end };
+  } else if (month) {
     const m = parseInt(month);
     matchQuery.expenseDate = {
       $gte: new Date(y, m - 1, 1),
@@ -1005,5 +1162,6 @@ export {
   archiveExpense, restoreExpense, settleExpense, getSettlements, settleMonth, getSettlePreview, batchSettle,
   getExpenseSummary, getTeamTotal, getPersonSummary,
   getMonthlyTrend, getQuarterlyTrend, getCategoryBreakdown, getRecentExpenses, getTopSpenders, getSettlementEmployeeSummary,
+  ensureQuarterlySnapshots, getQuarterSnapshots, getExpenseYears, getQuarterRange,
   mapExpense
 };

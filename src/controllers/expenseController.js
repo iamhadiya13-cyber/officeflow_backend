@@ -12,6 +12,27 @@ const getAll = async (req, res) => {
   }
 };
 
+const getYears = async (_req, res) => {
+  try {
+    const years = await expenseService.getExpenseYears();
+    return res.json(successResponse('Expense years loaded', years));
+  } catch (err) {
+    return res.status(err.statusCode || 500).json(errorResponse(err.message || 'Failed to load years'));
+  }
+};
+
+const getQuarterSnapshots = async (req, res) => {
+  try {
+    const snapshots = await expenseService.getQuarterSnapshots({
+      year: req.query.year,
+      quarter: req.query.quarter,
+    });
+    return res.json(successResponse('Quarter snapshots loaded', snapshots));
+  } catch (err) {
+    return res.status(err.statusCode || 500).json(errorResponse(err.message || 'Failed to load quarter snapshots'));
+  }
+};
+
 const create = async (req, res) => {
   try {
     const { expenseType, expense_type, title, description, amount, tripRequestId, expenseDate, expense_date } = req.body;
@@ -204,5 +225,6 @@ const getSettlementEmployees = async (req, res) => {
 export const expenseController = {
   getAll, create, getOne, update, toggleSettle,
   archive, restore, settleMonth, settlePreview, batchSettle,
-  getSummary, getPersonSummary, getSettlements, getArchived, getSettlementEmployees
+  getSummary, getPersonSummary, getSettlements, getArchived, getSettlementEmployees,
+  getYears, getQuarterSnapshots
 };

@@ -6,6 +6,8 @@ import { authorize } from '../middleware/rbac.js';
 const router = express.Router();
 router.use(authenticate);
 router.get('/settle-preview', expenseController.settlePreview);
+router.get('/years', expenseController.getYears);
+router.get('/quarter-snapshots', authorize('SUPER_ADMIN','MANAGER'), expenseController.getQuarterSnapshots);
 router.get('/summary', expenseController.getSummary);
 router.get('/person-summary', expenseController.getPersonSummary);
 router.get('/settlement-employees', authorize('SUPER_ADMIN','MANAGER'), expenseController.getSettlementEmployees);

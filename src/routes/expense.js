@@ -7,7 +7,7 @@ const router = express.Router();
 router.use(authenticate);
 router.get('/settle-preview', expenseController.settlePreview);
 router.get('/years', expenseController.getYears);
-router.get('/quarter-snapshots', authorize('SUPER_ADMIN','MANAGER'), expenseController.getQuarterSnapshots);
+router.get('/quarter-snapshots', expenseController.getQuarterSnapshots);
 router.get('/summary', expenseController.getSummary);
 router.get('/person-summary', expenseController.getPersonSummary);
 router.get('/settlement-employees', authorize('SUPER_ADMIN','MANAGER'), expenseController.getSettlementEmployees);
@@ -21,6 +21,7 @@ router.put('/:id', expenseController.update);
 router.put('/:id/settle', authorize('SUPER_ADMIN','MANAGER'), expenseController.toggleSettle);
 router.put('/:id/archive', expenseController.archive);
 router.put('/:id/restore', authorize('SUPER_ADMIN'), expenseController.restore);
+router.delete('/:id', expenseController.remove);
 // Accessible to all (restricted by scoped database filters)
 router.post('/settle-month', expenseController.settleMonth);
 router.patch('/settlements/batch', expenseController.batchSettle);

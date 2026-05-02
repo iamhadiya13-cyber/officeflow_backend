@@ -74,6 +74,16 @@ const getQuarterRange = (year, quarter) => {
   };
 };
 
+const isPreviousQuarter = (year, quarter, now = new Date()) => {
+  const q = parseInt(quarter, 10);
+  const y = parseInt(year, 10);
+  if (!Number.isFinite(q) || !Number.isFinite(y) || q < 1 || q > 4) return false;
+  const currentQuarter = Math.floor(now.getMonth() / 3) + 1;
+  const currentQuarterStart = new Date(now.getFullYear(), (currentQuarter - 1) * 3, 1);
+  const { end } = getQuarterRange(y, q);
+  return end < currentQuarterStart;
+};
+
 const getQuarterLabel = (quarter) => {
   const labels = ['Q1 (Jan-Mar)', 'Q2 (Apr-Jun)', 'Q3 (Jul-Sep)', 'Q4 (Oct-Dec)'];
   return labels[Number(quarter) - 1] || `Q${quarter}`;
@@ -125,10 +135,13 @@ const buildFilterLogic = async (userId, role, filters) => {
   const {
     is_settled, expense_type, from, to, search,
     month, quarter, year, min_amount, max_amount,
-    is_archived = 'false', employee_ids, scope
+    is_archived = 'false', employee_ids, scope, previous_only, exclude_previous_quarter_seed
   } = filters;
 
   let query = { isArchived: is_archived === 'true' };
+  if (exclude_previous_quarter_seed === 'true') {
+    query.description = { $ne: 'Seed: Q1-2026 previous quarter import' };
+  }
 
   if (employee_ids && employee_ids !== 'ALL') {
     const ids = employee_ids.split(',').map(id => id.trim()).filter(id => mongoose.Types.ObjectId.isValid(id)).map(id => new mongoose.Types.ObjectId(id));
@@ -158,6 +171,9 @@ const buildFilterLogic = async (userId, role, filters) => {
       const q = parseInt(quarter);
       const y = parseInt(year);
       if (!isNaN(q) && q >= 1 && q <= 4 && !isNaN(y)) {
+        if (previous_only === 'true' && !isPreviousQuarter(y, q)) {
+          query._id = { $exists: false };
+        }
         const { start, end } = getQuarterRange(y, q);
         query.expenseDate = { $gte: start, $lte: end };
       }
@@ -348,6 +364,19 @@ const archiveExpense = async ({ id, userId, role, reason }) => {
   return mapExpense(existing);
 };
 
+const deleteExpense = async ({ id, userId, role }) => {
+  const existing = await ExpenseRequest.findById(id);
+  if (!existing) throw { statusCode: 404, message: 'Expense not found' };
+
+  if (role !== 'SUPER_ADMIN' && role !== 'MANAGER') {
+    if (existing.employeeId.toString() !== userId.toString()) throw { statusCode: 403, message: 'Not authorized' };
+    if (existing.isSettled) throw { statusCode: 400, message: 'Can only delete unsettled expenses' };
+  }
+
+  await ExpenseRequest.findByIdAndDelete(id);
+  return { success: true };
+};
+
 const restoreExpense = async (id) => {
   const existing = await ExpenseRequest.findById(id);
   if (!existing) throw { statusCode: 404, message: 'Expense not found' };
@@ -431,7 +460,7 @@ const getSettlements = async ({ employeeIds, year, month, quarter, page = 1, lim
       if (!isNaN(q) && q >= 1 && q <= 4) {
         const startMonth = (q - 1) * 3; // 0 for Q1 (Jan), 3 for Q2 (Apr)
         const endMonth = startMonth + 2; // 2 for Q1 (Mar), 5 for Q2 (Jun)
-        query.settledAt = {
+        query.expenseDate = {
           $gte: new Date(y, startMonth, 1),
           $lte: new Date(y, endMonth + 1, 0, 23, 59, 59, 999), 
         };
@@ -439,13 +468,13 @@ const getSettlements = async ({ employeeIds, year, month, quarter, page = 1, lim
     } else if (month) {
       const m = parseInt(month);
       if (!isNaN(m)) {
-        query.settledAt = {
+        query.expenseDate = {
           $gte: new Date(y, m - 1, 1),
           $lte: new Date(y, m, 0, 23, 59, 59, 999),
         };
       }
     } else {
-      query.settledAt = {
+      query.expenseDate = {
         $gte: new Date(y, 0, 1),
         $lte: new Date(y, 11, 31, 23, 59, 59, 999),
       };
@@ -582,11 +611,17 @@ const mapQuarterSnapshot = (snapshot) => {
   };
 };
 
-const getQuarterSnapshots = async ({ year, quarter } = {}) => {
+const getQuarterSnapshots = async ({ year, quarter, previousOnly = false } = {}) => {
   await ensureQuarterlySnapshots();
   const query = {};
   if (year) query.year = parseInt(year, 10);
   if (quarter) query.quarter = parseInt(quarter, 10);
+  if (previousOnly) {
+    const now = new Date();
+    const currentQuarter = Math.floor(now.getMonth() / 3) + 1;
+    const currentQuarterStart = new Date(now.getFullYear(), (currentQuarter - 1) * 3, 1);
+    query.endDate = { $lt: currentQuarterStart };
+  }
 
   const snapshots = await QuarterlyExpenseSnapshot.find(query).sort({ year: -1, quarter: -1 });
   return snapshots.map(mapQuarterSnapshot);
@@ -1159,7 +1194,7 @@ const getTopSpenders = async ({ role, userId, month, quarter, year, limit = 5, s
 
 export {
   getExpenses, createExpense, getExpenseById, updateExpense,
-  archiveExpense, restoreExpense, settleExpense, getSettlements, settleMonth, getSettlePreview, batchSettle,
+  archiveExpense, deleteExpense, restoreExpense, settleExpense, getSettlements, settleMonth, getSettlePreview, batchSettle,
   getExpenseSummary, getTeamTotal, getPersonSummary,
   getMonthlyTrend, getQuarterlyTrend, getCategoryBreakdown, getRecentExpenses, getTopSpenders, getSettlementEmployeeSummary,
   ensureQuarterlySnapshots, getQuarterSnapshots, getExpenseYears, getQuarterRange,

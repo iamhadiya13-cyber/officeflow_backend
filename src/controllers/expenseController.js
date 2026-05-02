@@ -26,6 +26,7 @@ const getQuarterSnapshots = async (req, res) => {
     const snapshots = await expenseService.getQuarterSnapshots({
       year: req.query.year,
       quarter: req.query.quarter,
+      previousOnly: req.query.previous_only === 'true',
     });
     return res.json(successResponse('Quarter snapshots loaded', snapshots));
   } catch (err) {
@@ -103,6 +104,19 @@ const archive = async (req, res) => {
       reason: req.body.reason,
     });
     return res.json(successResponse('Expense archived', expense));
+  } catch (err) {
+    return res.status(err.statusCode || 500).json(errorResponse(err.message));
+  }
+};
+
+const remove = async (req, res) => {
+  try {
+    const result = await expenseService.deleteExpense({
+      id: req.params.id,
+      userId: req.user._id,
+      role: req.user.role,
+    });
+    return res.json(successResponse('Expense deleted', result));
   } catch (err) {
     return res.status(err.statusCode || 500).json(errorResponse(err.message));
   }
@@ -224,7 +238,7 @@ const getSettlementEmployees = async (req, res) => {
 
 export const expenseController = {
   getAll, create, getOne, update, toggleSettle,
-  archive, restore, settleMonth, settlePreview, batchSettle,
+  archive, remove, restore, settleMonth, settlePreview, batchSettle,
   getSummary, getPersonSummary, getSettlements, getArchived, getSettlementEmployees,
   getYears, getQuarterSnapshots
 };

@@ -8,12 +8,12 @@ router.use(authenticate);
 
 router.get('/all', userController.getAll);
 router.get('/', userController.getAll);
-router.post('/', userController.create);
+router.post('/', authorize('SUPER_ADMIN', 'MANAGER'), userController.create);
 // Accessible to all roles — used for employee dropdowns in filters/modals
 router.get('/employees', userController.getEmployeeList);
 router.get('/:id', userController.getOne);
-router.put('/:id', userController.update);
-router.delete('/:id', userController.deactivate);
+router.put('/:id', authorize('SUPER_ADMIN', 'MANAGER'), userController.update);
+router.delete('/:id', authorize('SUPER_ADMIN', 'MANAGER'), userController.deactivate);
 router.post('/invite', authorize('SUPER_ADMIN'), userController.invite);
 router.get('/invites', authorize('SUPER_ADMIN'), userController.getInvites);
 router.delete('/invites/:id', authorize('SUPER_ADMIN'), userController.cancelInvite);

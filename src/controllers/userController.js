@@ -7,6 +7,16 @@ const toPositiveInt = (value, fallback, max = 100) => {
   return Math.min(parsed, max)
 }
 
+const normalizeRole = (role) => (role || '').toUpperCase()
+
+const canManageRole = (actorRole, targetRole) => {
+  const actor = normalizeRole(actorRole)
+  const target = normalizeRole(targetRole)
+  if (actor === 'SUPER_ADMIN') return true
+  if (actor === 'MANAGER') return target === 'EMPLOYEE' || target === 'INTERN'
+  return false
+}
+
 const getAll = async (req, res) => {
   try {
     const { role, _id: userId } = req.user
@@ -85,17 +95,19 @@ const create = async (req, res) => {
   try {
     const bcrypt = (await import('bcryptjs')).default
     const { name, email, password, role, department, managerId, dateOfBirth } = req.body
-    if (req.user.role !== 'SUPER_ADMIN' && role === 'SUPER_ADMIN') {
-      return res.status(403).json(errorResponse('Only Super Admins can create super admin users'))
+    const requestedRole = normalizeRole(role || 'EMPLOYEE')
+
+    if (!canManageRole(req.user.role, requestedRole)) {
+      return res.status(403).json(errorResponse('You do not have permission to create this role'))
     }
     const passwordHash = await bcrypt.hash(password || 'Admin@1234', 12)
-    const user = await User.create({ name, email, passwordHash, role, department, managerId, dateOfBirth, mustChangePassword: true })
+    const user = await User.create({ name, email, passwordHash, role: requestedRole, department, managerId, dateOfBirth, mustChangePassword: true })
     
     // Create their initial LeaveBalance
     const { LeaveType } = await import('../models/LeaveType.js')
     const { LeaveBalance } = await import('../models/LeaveBalance.js')
     const annualLeave = await LeaveType.findOne({ name: 'Annual Leave' })
-    if (annualLeave && role !== 'INTERN') {
+    if (annualLeave && requestedRole !== 'INTERN') {
       await LeaveBalance.create({
         userId: user._id,
         leaveTypeId: annualLeave._id,
@@ -115,10 +127,14 @@ const create = async (req, res) => {
 const update = async (req, res) => {
   try {
     const { name, role, department, managerId, isActive, dateOfBirth } = req.body
-    if (req.user.role !== 'SUPER_ADMIN' && role === 'SUPER_ADMIN') {
-      return res.status(403).json(errorResponse('Only Super Admins can assign super admin role'))
+    const targetUser = await User.findById(req.params.id).select('role')
+    if (!targetUser) return res.status(404).json(errorResponse('User not found'))
+
+    const nextRole = normalizeRole(role || targetUser.role)
+    if (!canManageRole(req.user.role, targetUser.role) || !canManageRole(req.user.role, nextRole)) {
+      return res.status(403).json(errorResponse('You do not have permission to edit this user'))
     }
-    const user = await User.findByIdAndUpdate(req.params.id, { name, role, department, managerId, isActive, dateOfBirth }, { new: true, runValidators: true })
+    const user = await User.findByIdAndUpdate(req.params.id, { name, role: nextRole, department, managerId, isActive, dateOfBirth }, { new: true, runValidators: true })
     return res.json(successResponse('User updated', user))
   } catch (err) {
     return res.status(500).json(errorResponse(err.message))
@@ -127,6 +143,11 @@ const update = async (req, res) => {
 
 const deactivate = async (req, res) => {
   try {
+    const targetUser = await User.findById(req.params.id).select('role')
+    if (!targetUser) return res.status(404).json(errorResponse('User not found'))
+    if (!canManageRole(req.user.role, targetUser.role)) {
+      return res.status(403).json(errorResponse('You do not have permission to deactivate this user'))
+    }
     await User.findByIdAndUpdate(req.params.id, { isActive: false })
     return res.json(successResponse('User deactivated'))
   } catch (err) {

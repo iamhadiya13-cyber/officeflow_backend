@@ -136,7 +136,7 @@ export const applyExpenseScope = async (query, userId, rawRole, context = 'list'
 const buildFilterLogic = async (userId, role, filters) => {
   const {
     is_settled, expense_type, from, to, search,
-    month, quarter, year, min_amount, max_amount,
+    month, months, quarter, year, min_amount, max_amount,
     is_archived = 'false', employee_ids, scope, previous_only, exclude_previous_quarter_seed
   } = filters;
 
@@ -160,8 +160,8 @@ const buildFilterLogic = async (userId, role, filters) => {
   }
 
   // Date filtering — use expenseDate for user-facing filters
-  if (from || to || month || quarter || year) {
-    const effectiveYear = year || ((month || quarter) ? 2026 : undefined);
+  if (from || to || month || months || quarter || year) {
+    const effectiveYear = year || ((month || months || quarter) ? 2026 : undefined);
     query.expenseDate = {};
     if (from) query.expenseDate.$gte = new Date(from);
     if (to) {
@@ -170,7 +170,22 @@ const buildFilterLogic = async (userId, role, filters) => {
       query.expenseDate.$lte = toDate;
     }
 
-    if (quarter && effectiveYear) {
+    if (months && effectiveYear) {
+      const monthValues = String(months)
+        .split(',')
+        .map((value) => parseInt(value, 10))
+        .filter((value) => value >= 1 && value <= 12);
+      const y = parseInt(effectiveYear);
+      if (monthValues.length > 0 && !isNaN(y)) {
+        query.$or = monthValues.map((monthValue) => ({
+          expenseDate: {
+            $gte: new Date(y, monthValue - 1, 1),
+            $lte: new Date(y, monthValue, 0, 23, 59, 59, 999),
+          },
+        }));
+        delete query.expenseDate;
+      }
+    } else if (quarter && effectiveYear) {
       const q = parseInt(quarter);
       const y = parseInt(effectiveYear);
       if (!isNaN(q) && q >= 1 && q <= 4 && !isNaN(y)) {

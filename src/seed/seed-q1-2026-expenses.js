@@ -60,6 +60,17 @@ const rows = [
   { date: '2026-03-12', name: 'Kathan', details: 'Tea', amount: 80, expenseType: 'FOOD' },
   { date: '2026-03-13', name: 'Kathan', details: 'Sandwich', amount: 600, expenseType: 'FOOD' },
   { date: '2026-03-13', name: 'Kamal', details: 'AC', amount: 590, expenseType: 'OTHER' },
+  { date: '2026-03-16', name: 'Naitik', details: 'puff', amount: 210, expenseType: 'FOOD' },
+  { date: '2026-03-17', name: 'Parth', details: 'Petrol', amount: 150, expenseType: 'FOOD' },
+  { date: '2026-03-17', name: 'Yash', details: 'Tea', amount: 30, expenseType: 'FOOD' },
+  { date: '2026-03-18', name: 'Kathan', details: 'Gthiya+vadapaw', amount: 560, expenseType: 'FOOD' },
+  { date: '2026-03-19', name: 'Yash', details: 'Tea', amount: 80, expenseType: 'FOOD' },
+  { date: '2026-03-20', name: 'Kathan', details: 'Dabali + tea', amount: 300, expenseType: 'FOOD' },
+  { date: '2026-03-24', name: 'Naitik', details: 'Cholafali', amount: 200, expenseType: 'FOOD' },
+  { date: '2026-03-27', name: 'Naitik', details: 'Delivery', amount: 367, expenseType: 'OTHER' },
+  { date: '2026-03-26', name: 'Kamal', details: 'cake', amount: 950, expenseType: 'FOOD' },
+  { date: '2026-03-30', name: 'Kathan', details: 'Tea', amount: 40, expenseType: 'FOOD' },
+  { date: '2026-03-31', name: 'Naitik', details: 'Tea', amount: 60, expenseType: 'FOOD' },
 ]
 
 const normalizeName = (name) => name.trim().toLowerCase()

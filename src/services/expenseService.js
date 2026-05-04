@@ -7,6 +7,8 @@ import { User } from '../models/User.js';
 import { QuarterlyExpenseSnapshot } from '../models/QuarterlyExpenseSnapshot.js';
 import { getQuarter } from '../utils/dateHelper.js';
 
+const PREVIOUS_QUARTER_SEED_MARKER = 'Seed: Q1-2026 previous quarter import';
+
 // Helper to convert a Mongoose doc to a clean frontend-friendly object
 const mapExpense = (d) => {
   // Use toObject (NOT toJSON) to preserve _id on populated docs;
@@ -140,7 +142,7 @@ const buildFilterLogic = async (userId, role, filters) => {
 
   let query = { isArchived: is_archived === 'true' };
   if (exclude_previous_quarter_seed === 'true') {
-    query.description = { $ne: 'Seed: Q1-2026 previous quarter import' };
+    query.description = { $ne: PREVIOUS_QUARTER_SEED_MARKER };
   }
 
   if (employee_ids && employee_ids !== 'ALL') {
@@ -159,6 +161,7 @@ const buildFilterLogic = async (userId, role, filters) => {
 
   // Date filtering — use expenseDate for user-facing filters
   if (from || to || month || quarter || year) {
+    const effectiveYear = year || ((month || quarter) ? 2026 : undefined);
     query.expenseDate = {};
     if (from) query.expenseDate.$gte = new Date(from);
     if (to) {
@@ -167,9 +170,9 @@ const buildFilterLogic = async (userId, role, filters) => {
       query.expenseDate.$lte = toDate;
     }
 
-    if (quarter && year) {
+    if (quarter && effectiveYear) {
       const q = parseInt(quarter);
-      const y = parseInt(year);
+      const y = parseInt(effectiveYear);
       if (!isNaN(q) && q >= 1 && q <= 4 && !isNaN(y)) {
         if (previous_only === 'true' && !isPreviousQuarter(y, q)) {
           query._id = { $exists: false };
@@ -177,16 +180,20 @@ const buildFilterLogic = async (userId, role, filters) => {
         const { start, end } = getQuarterRange(y, q);
         query.expenseDate = { $gte: start, $lte: end };
       }
-    } else if (month && year) {
+    } else if (month && effectiveYear) {
       const m = parseInt(month);
-      const y = parseInt(year);
+      const y = parseInt(effectiveYear);
       if (!isNaN(m) && !isNaN(y)) {
+        const monthQuarter = Math.floor((m - 1) / 3) + 1;
+        if (previous_only === 'true' && !isPreviousQuarter(y, monthQuarter)) {
+          query._id = { $exists: false };
+        }
         const startOfMonth = new Date(y, m - 1, 1);
         const endOfMonth = new Date(y, m, 0, 23, 59, 59, 999);
         query.expenseDate = { $gte: startOfMonth, $lte: endOfMonth };
       }
-    } else if (year && !month) {
-      const y = parseInt(year);
+    } else if (effectiveYear && !month) {
+      const y = parseInt(effectiveYear);
       if (!isNaN(y)) {
         query.expenseDate = { $gte: new Date(y, 0, 1), $lte: new Date(y, 11, 31, 23, 59, 59, 999) };
       }
@@ -441,7 +448,11 @@ const settleExpense = async ({ id, userId }) => {
 };
 
 const getSettlements = async ({ employeeIds, year, month, quarter, page = 1, limit = 10 }) => {
-  const query = { isSettled: true, isArchived: false };
+  const query = {
+    isSettled: true,
+    isArchived: false,
+    description: { $ne: PREVIOUS_QUARTER_SEED_MARKER },
+  };
 
   if (employeeIds && employeeIds.length > 0) {
     const validIds = employeeIds
@@ -880,7 +891,10 @@ const getSettlementEmployeeSummary = async ({ userId, role, month, year }) => {
 
   const targetMonth = parseInt(month);
   const targetYear = parseInt(year);
-  const match = { isArchived: false };
+  const match = {
+    isArchived: false,
+    description: { $ne: PREVIOUS_QUARTER_SEED_MARKER },
+  };
 
   if (!Number.isNaN(targetMonth) && !Number.isNaN(targetYear)) {
     match.expenseDate = {

@@ -16,6 +16,7 @@ import dashboardRoutes from './routes/dashboard.js'
 import budgetRoutes from './routes/budget.js'
 import exportRoutes from './routes/export.js'
 import fundRoutes from './routes/fund.js'
+import deliveryRoutes from './routes/deliveryRoutes.js'
 
 const app = express()
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
@@ -39,6 +40,7 @@ app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/budget', budgetRoutes)
 app.use('/api/export', exportRoutes)
 app.use('/api/fund', fundRoutes)
+app.use('/api/deliveries', deliveryRoutes)
 
 // Profile alias — GET/PUT /api/profile/me → current user's own profile
 import { authenticate as _authMw } from './middleware/auth.js'

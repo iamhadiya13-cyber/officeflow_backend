@@ -13,8 +13,8 @@ const router = express.Router();
 router.use(authenticate);
 
 router.get('/', getDeliveriesByMonth);
-router.post('/', authorize('MANAGER', 'SUPER_ADMIN'), updateDailyDelivery);
-router.delete('/:date', authorize('MANAGER', 'SUPER_ADMIN'), deleteDailyDelivery);
-router.post('/price', authorize('MANAGER', 'SUPER_ADMIN'), updateDeliveryPrice);
+router.post('/', authorize('SUPER_ADMIN', 'MANAGER', 'HR'), updateDailyDelivery);
+router.delete('/:date', authorize('SUPER_ADMIN', 'MANAGER', 'HR'), deleteDailyDelivery);
+router.post('/price', authorize('SUPER_ADMIN', 'MANAGER', 'HR'), updateDeliveryPrice);
 
 export default router;

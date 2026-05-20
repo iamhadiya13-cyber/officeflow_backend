@@ -16,13 +16,13 @@ router.post('/set', authorize('SUPER_ADMIN'), budgetController.setBudget);
 router.get('/quarterly/usage', budgetController.getUsage);
 router.get('/quarterly/current', budgetController.getCurrent);
 router.get('/quarterly', budgetController.getQuarterly);
-router.post('/quarterly', authorize('SUPER_ADMIN', 'MANAGER'), budgetController.setBudget);
+router.post('/quarterly', authorize('SUPER_ADMIN', 'MANAGER', 'HR'), budgetController.setBudget);
 
 // History
 router.get('/history', budgetController.getHistory);
 
 // Fund endpoints
-router.get('/fund', authorize('SUPER_ADMIN', 'MANAGER'), budgetController.getFund);
+router.get('/fund', authorize('SUPER_ADMIN', 'MANAGER', 'HR'), budgetController.getFund);
 router.post('/fund/adjust', authorize('SUPER_ADMIN'), budgetController.adjustFund);
 router.get('/fund/adjustments', authorize('SUPER_ADMIN'), budgetController.getFundAdjustments);
 

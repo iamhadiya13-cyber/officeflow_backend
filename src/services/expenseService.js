@@ -100,7 +100,7 @@ const getGraceCutoff = (endDate) => {
 
 export const isPrivilegedExpenseRole = (role) => {
   const norm = normalizeRole(role);
-  return norm === 'SUPER_ADMIN' || norm === 'ADMIN';
+  return ['SUPER_ADMIN', 'MANAGER', 'HR'].includes(norm);
 };
 
 export const applyExpenseScope = async (query, userId, rawRole, context = 'list', scopeMode = 'all') => {
@@ -117,7 +117,7 @@ export const applyExpenseScope = async (query, userId, rawRole, context = 'list'
   }
 
   // MANAGER sees everything (all employees' expenses)
-  if (role === 'MANAGER') {
+  if (role === 'MANAGER' || role === 'HR') {
     if (effectiveScope === 'me') {
       query.employeeId = uId;
     }

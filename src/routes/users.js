@@ -8,17 +8,17 @@ router.use(authenticate);
 
 router.get('/all', userController.getAll);
 router.get('/', userController.getAll);
-router.post('/', authorize('SUPER_ADMIN', 'MANAGER'), userController.create);
+router.post('/', authorize('SUPER_ADMIN', 'MANAGER', 'HR'), userController.create);
 // Accessible to all roles — used for employee dropdowns in filters/modals
 router.get('/employees', userController.getEmployeeList);
 router.get('/:id', userController.getOne);
-router.put('/:id', authorize('SUPER_ADMIN', 'MANAGER'), userController.update);
-router.delete('/:id', authorize('SUPER_ADMIN', 'MANAGER'), userController.deactivate);
+router.put('/:id', authorize('SUPER_ADMIN', 'MANAGER', 'HR'), userController.update);
+router.delete('/:id', authorize('SUPER_ADMIN', 'MANAGER', 'HR'), userController.deactivate);
 router.post('/invite', authorize('SUPER_ADMIN'), userController.invite);
 router.get('/invites', authorize('SUPER_ADMIN'), userController.getInvites);
 router.delete('/invites/:id', authorize('SUPER_ADMIN'), userController.cancelInvite);
 router.post('/invites/:id/resend', authorize('SUPER_ADMIN'), userController.resendInvite);
 router.put('/:id/reset-password', authorize('SUPER_ADMIN'), userController.resetPassword);
-router.put('/:id/extra-leaves', authorize('SUPER_ADMIN', 'MANAGER'), userController.addExtraLeaves);
+router.put('/:id/extra-leaves', authorize('SUPER_ADMIN', 'MANAGER', 'HR'), userController.addExtraLeaves);
 
 export default router;

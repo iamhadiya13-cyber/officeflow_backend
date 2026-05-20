@@ -85,7 +85,7 @@ const getStats = async (req, res) => {
       leaveSummary,
       statusBreakdown
     ] = await Promise.all([
-      ['SUPER_ADMIN', 'MANAGER'].includes(role) && scope !== 'me'
+      ['SUPER_ADMIN', 'MANAGER', 'HR'].includes(role) && scope !== 'me'
         ? User.countDocuments({ isActive: true }) 
         : 0,
       ExpenseRequest.aggregate([
@@ -110,7 +110,7 @@ const getStats = async (req, res) => {
         { $sort: { total: -1 } },
         { $limit: 1 }
       ]),
-      (['SUPER_ADMIN', 'MANAGER'].includes(role) && scope !== 'me')
+      (['SUPER_ADMIN', 'MANAGER', 'HR'].includes(role) && scope !== 'me')
         ? LeaveRequest.countDocuments({ status: 'pending' })
         : LeaveRequest.countDocuments({
             employeeId: userId,
@@ -188,7 +188,7 @@ const getStats = async (req, res) => {
 }
 
 const ensurePrivilegedDashboardAccess = (req) => {
-  if (!['SUPER_ADMIN', 'MANAGER'].includes(req.user.role)) {
+  if (!['SUPER_ADMIN', 'MANAGER', 'HR'].includes(req.user.role)) {
     throw { statusCode: 403, message: 'Access denied' };
   }
 };

@@ -23,7 +23,7 @@ const getScopedUserIds = async ({ userId, role }) => {
     return [userId];
   }
 
-  if (role === 'MANAGER') {
+  if (role === 'MANAGER' || role === 'HR') {
     const managerUsers = await User.find({}).select('_id');
     return managerUsers.map(u => u._id);
   }
@@ -195,7 +195,7 @@ const getLeaveRequests = async ({ userId, role, filters }) => {
   } else if (role === 'EMPLOYEE') {
     // Employees can only see their own leave
     query.employeeId = userId;
-  } else if (role === 'MANAGER') {
+  } else if (role === 'MANAGER' || role === 'HR') {
     // Get team members but exclude the manager themselves
     const scopedIds = await getScopedUserIds({ userId, role });
     const teamMemberIds = scopedIds.filter(id => id.toString() !== userId.toString());
@@ -275,7 +275,7 @@ const deleteLeaveRequest = async (id, userId, role) => {
   const request = await LeaveRequest.findById(id);
   if (!request) throw { statusCode: 404, message: 'Leave request not found' };
   
-  if (role !== 'SUPER_ADMIN' && role !== 'MANAGER') {
+  if (role !== 'SUPER_ADMIN' && role !== 'MANAGER' && role !== 'HR') {
     if (request.employeeId.toString() !== userId.toString()) throw { statusCode: 403, message: 'Not authorized' };
     if (request.status !== 'pending') throw { statusCode: 400, message: 'Can only delete pending requests' };
   }
@@ -333,7 +333,7 @@ const getOtherLeaveRequests = async ({ userId, role, filters }) => {
 
   if (role === 'SUPER_ADMIN') {
     // sees all
-  } else if (role === 'MANAGER') {
+  } else if (role === 'MANAGER' || role === 'HR') {
     query.employeeId = { $in: await getScopedUserIds({ userId, role }) };
   } else {
     // EMPLOYEE, INTERN — see only their own

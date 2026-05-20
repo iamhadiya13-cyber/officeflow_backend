@@ -10,15 +10,15 @@ router.get('/years', expenseController.getYears);
 router.get('/quarter-snapshots', expenseController.getQuarterSnapshots);
 router.get('/summary', expenseController.getSummary);
 router.get('/person-summary', expenseController.getPersonSummary);
-router.get('/settlement-employees', authorize('SUPER_ADMIN','MANAGER'), expenseController.getSettlementEmployees);
-router.get('/settlements', authorize('SUPER_ADMIN','MANAGER'), expenseController.getSettlements);
+router.get('/settlement-employees', authorize('SUPER_ADMIN', 'MANAGER', 'HR'), expenseController.getSettlementEmployees);
+router.get('/settlements', authorize('SUPER_ADMIN', 'MANAGER', 'HR'), expenseController.getSettlements);
 router.get('/archived', authorize('SUPER_ADMIN'), expenseController.getArchived);
 
 router.get('/', expenseController.getAll);
 router.post('/', expenseController.create);
 router.get('/:id', expenseController.getOne);
 router.put('/:id', expenseController.update);
-router.put('/:id/settle', authorize('SUPER_ADMIN','MANAGER'), expenseController.toggleSettle);
+router.put('/:id/settle', authorize('SUPER_ADMIN', 'MANAGER', 'HR'), expenseController.toggleSettle);
 router.put('/:id/archive', expenseController.archive);
 router.put('/:id/restore', authorize('SUPER_ADMIN'), expenseController.restore);
 router.delete('/:id', expenseController.remove);

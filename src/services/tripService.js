@@ -17,7 +17,7 @@ const getTrips = async ({ userId, role, filters }) => {
 
   if (role === 'EMPLOYEE') {
     query.employeeId = userId;
-  } else if (role === 'MANAGER') {
+  } else if (role === 'MANAGER' || role === 'HR') {
     // Managers see all trips
   }
 

@@ -6,8 +6,8 @@ import { authorize } from '../middleware/rbac.js';
 const router = express.Router();
 
 router.get('/stats', authenticate, dashboardController.getStats);
-router.get('/all-stats', authenticate, authorize('SUPER_ADMIN', 'MANAGER'), dashboardController.getAllStats);
-router.get('/all-leave', authenticate, authorize('SUPER_ADMIN', 'MANAGER'), dashboardController.getAllLeave);
-router.get('/all-expense-trend', authenticate, authorize('SUPER_ADMIN', 'MANAGER'), dashboardController.getAllExpenseTrend);
+router.get('/all-stats', authenticate, authorize('SUPER_ADMIN', 'MANAGER', 'HR'), dashboardController.getAllStats);
+router.get('/all-leave', authenticate, authorize('SUPER_ADMIN', 'MANAGER', 'HR'), dashboardController.getAllLeave);
+router.get('/all-expense-trend', authenticate, authorize('SUPER_ADMIN', 'MANAGER', 'HR'), dashboardController.getAllExpenseTrend);
 
 export default router;

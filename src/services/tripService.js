@@ -18,10 +18,7 @@ const getTrips = async ({ userId, role, filters }) => {
   if (role === 'EMPLOYEE') {
     query.employeeId = userId;
   } else if (role === 'MANAGER') {
-    const managerUsers = await User.find({ managerId: userId }).select('_id');
-    const userIds = managerUsers.map(u => u._id);
-    userIds.push(userId);
-    query.employeeId = { $in: userIds };
+    // Managers see all trips
   }
 
   if (status) query.status = status;

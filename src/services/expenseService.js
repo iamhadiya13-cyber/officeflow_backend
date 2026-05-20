@@ -807,29 +807,6 @@ const getExpenseSummary = async ({ userId, role, filters }) => {
   };
 };
 
-const getTeamTotal = async (managerId) => {
-  const users = await User.find({ managerId }).select('_id');
-  const userIds = users.map(u => u._id);
-
-  const result = await ExpenseRequest.aggregate([
-    { $match: { employeeId: { $in: userIds }, isArchived: false } },
-    {
-      $group: {
-        _id: { expenseType: "$expenseType", isSettled: "$isSettled" },
-        count: { $sum: 1 },
-        total: { $sum: { $toDouble: "$amount" } }
-      }
-    },
-    { $sort: { "_id.expenseType": 1 } }
-  ]);
-
-  return result.map(r => ({
-    expense_type: r._id.expenseType,
-    is_settled: r._id.isSettled,
-    count: r.count,
-    total: r.total
-  }));
-};
 
 const getPersonSummary = async ({ userId, role, filters }) => {
   const matchQuery = await buildFilterLogic(userId, role, filters);
@@ -1224,7 +1201,7 @@ const getTopSpenders = async ({ role, userId, month, quarter, year, limit = 5, s
 export {
   getExpenses, createExpense, getExpenseById, updateExpense,
   archiveExpense, deleteExpense, restoreExpense, settleExpense, getSettlements, settleMonth, getSettlePreview, batchSettle,
-  getExpenseSummary, getTeamTotal, getPersonSummary,
+  getExpenseSummary, getPersonSummary,
   getMonthlyTrend, getQuarterlyTrend, getCategoryBreakdown, getRecentExpenses, getTopSpenders, getSettlementEmployeeSummary,
   ensureQuarterlySnapshots, getQuarterSnapshots, getExpenseYears, getQuarterRange,
   mapExpense

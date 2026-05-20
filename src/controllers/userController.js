@@ -44,8 +44,7 @@ const getAll = async (req, res) => {
 
     const [users, total] = await Promise.all([
       User.find(query)
-        .select('name email role department managerId isActive dateOfBirth createdAt')
-        .populate('managerId', 'name')
+        .select('name email role department isActive dateOfBirth createdAt')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(safeLimit)
@@ -60,8 +59,6 @@ const getAll = async (req, res) => {
         email: user.email,
         role: user.role,
         department: user.department,
-        managerId: user.managerId?._id?.toString?.() || user.managerId?.toString?.() || null,
-        manager_name: user.managerId?.name || '-',
         isActive: user.isActive,
         is_active: user.isActive,
         dateOfBirth: user.dateOfBirth,
@@ -94,14 +91,14 @@ const getOne = async (req, res) => {
 const create = async (req, res) => {
   try {
     const bcrypt = (await import('bcryptjs')).default
-    const { name, email, password, role, department, managerId, dateOfBirth } = req.body
+    const { name, email, password, role, department, dateOfBirth } = req.body
     const requestedRole = normalizeRole(role || 'EMPLOYEE')
 
     if (!canManageRole(req.user.role, requestedRole)) {
       return res.status(403).json(errorResponse('You do not have permission to create this role'))
     }
     const passwordHash = await bcrypt.hash(password || 'Admin@1234', 12)
-    const user = await User.create({ name, email, passwordHash, role: requestedRole, department, managerId, dateOfBirth, mustChangePassword: true })
+    const user = await User.create({ name, email, passwordHash, role: requestedRole, department, dateOfBirth, mustChangePassword: true })
     
     // Create their initial LeaveBalance
     const { LeaveType } = await import('../models/LeaveType.js')
@@ -126,7 +123,7 @@ const create = async (req, res) => {
 
 const update = async (req, res) => {
   try {
-    const { name, role, department, managerId, isActive, dateOfBirth } = req.body
+    const { name, role, department, isActive, dateOfBirth } = req.body
     const targetUser = await User.findById(req.params.id).select('role')
     if (!targetUser) return res.status(404).json(errorResponse('User not found'))
 
@@ -134,7 +131,7 @@ const update = async (req, res) => {
     if (!canManageRole(req.user.role, targetUser.role) || !canManageRole(req.user.role, nextRole)) {
       return res.status(403).json(errorResponse('You do not have permission to edit this user'))
     }
-    const user = await User.findByIdAndUpdate(req.params.id, { name, role: nextRole, department, managerId, isActive, dateOfBirth }, { new: true, runValidators: true })
+    const user = await User.findByIdAndUpdate(req.params.id, { name, role: nextRole, department, isActive, dateOfBirth }, { new: true, runValidators: true })
     return res.json(successResponse('User updated', user))
   } catch (err) {
     return res.status(500).json(errorResponse(err.message))

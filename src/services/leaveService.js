@@ -24,8 +24,8 @@ const getScopedUserIds = async ({ userId, role }) => {
   }
 
   if (role === 'MANAGER') {
-    const managerUsers = await User.find({ managerId: userId }).select('_id');
-    return [...managerUsers.map(u => u._id), userId];
+    const managerUsers = await User.find({}).select('_id');
+    return managerUsers.map(u => u._id);
   }
 
   return null;
@@ -95,7 +95,7 @@ const getLeaveBalances = async ({ userId, role }) => {
 
   const balances = await LeaveBalance.find(query)
     .populate('leaveTypeId')
-    .populate({ path: 'userId', select: 'name department managerId' })
+    .populate({ path: 'userId', select: 'name department' })
     .sort('userId leaveTypeId');
 
   return balances.map(mapLeaveBalance);

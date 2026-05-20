@@ -85,11 +85,9 @@ const getStats = async (req, res) => {
       leaveSummary,
       statusBreakdown
     ] = await Promise.all([
-      role === 'SUPER_ADMIN' && scope !== 'me'
+      ['SUPER_ADMIN', 'MANAGER'].includes(role) && scope !== 'me'
         ? User.countDocuments({ isActive: true }) 
-        : role === 'MANAGER' && scope !== 'me'
-          ? User.countDocuments({ managerId: userId, isActive: true }) 
-          : 0,
+        : 0,
       ExpenseRequest.aggregate([
         { $match: { ...matchBase, expenseDate: { $gte: startOfYear, $lte: endOfYear } } },
         { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } }, count: { $sum: 1 } } }
@@ -112,12 +110,10 @@ const getStats = async (req, res) => {
         { $sort: { total: -1 } },
         { $limit: 1 }
       ]),
-      (role === 'SUPER_ADMIN' && scope !== 'me')
+      (['SUPER_ADMIN', 'MANAGER'].includes(role) && scope !== 'me')
         ? LeaveRequest.countDocuments({ status: 'pending' })
         : LeaveRequest.countDocuments({
-            employeeId: role === 'MANAGER' && scope !== 'me'
-              ? { $in: await User.find({ $or: [{ _id: userId }, { managerId: userId }], isActive: true }).distinct('_id') }
-              : userId,
+            employeeId: userId,
             status: 'pending'
           }),
       expenseService.getTopSpenders({ role, userId, month: isQuarterlyPeriod ? null : targetMonth, quarter: isQuarterlyPeriod ? targetQuarter : null, year: targetYear, limit: 5, scopeMode: scope }),

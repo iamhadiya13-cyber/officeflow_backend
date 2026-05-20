@@ -12,7 +12,6 @@ const userSchema = new mongoose.Schema(
       default: 'EMPLOYEE'
     },
     department: { type: String, trim: true, default: null },
-    managerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     isActive: { type: Boolean, default: true },
     mustChangePassword: { type: Boolean, default: false },
     dateOfBirth: { type: Date, default: null },
@@ -37,7 +36,6 @@ userSchema.set('toJSON', {
 })
 
 userSchema.index({ role: 1, isActive: 1, name: 1 })
-userSchema.index({ managerId: 1, isActive: 1 })
 userSchema.index({ name: 'text', email: 'text', department: 'text' })
 
 const User = mongoose.model('User', userSchema)

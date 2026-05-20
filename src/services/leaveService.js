@@ -168,8 +168,16 @@ const adjustExtraLeaves = async ({ employeeId, adjustment, reason, adminId }) =>
 };
 
 const addExtraLeavesBulk = async ({ userId, role, employeeIds, extraDays, reason, adminId }) => {
-  const scopedUserIds = await getScopedUserIds({ userId, role });
-  const allowedIds = scopedUserIds || (await User.find({ isActive: true }).distinct('_id'));
+  const norm = (role || '').toUpperCase();
+  let allowedIds;
+  if (norm === 'SUPER_ADMIN') {
+    allowedIds = await User.find({ isActive: true }).distinct('_id');
+  } else if (norm === 'HR' || norm === 'MANAGER') {
+    allowedIds = await User.find({ isActive: true, role: { $in: ['EMPLOYEE', 'INTERN'] } }).distinct('_id');
+  } else {
+    throw { statusCode: 403, message: 'Not authorized' };
+  }
+
   const targetIds = employeeIds === 'ALL'
     ? allowedIds
     : (employeeIds || []).filter((id) => allowedIds.some((allowedId) => allowedId.toString() === id.toString()));
@@ -240,6 +248,34 @@ const getLeaveRequests = async ({ userId, role, filters }) => {
   };
 };
 
+const assertPrivilegedLeaveAssignment = async (actorRole, actorUserId, targetEmployeeId) => {
+  if (!targetEmployeeId) throw { statusCode: 400, message: 'Employee is required' };
+  if (targetEmployeeId.toString() === actorUserId.toString()) return;
+
+  const role = (actorRole || '').toUpperCase();
+  if (!['SUPER_ADMIN', 'MANAGER', 'HR'].includes(role)) {
+    throw { statusCode: 403, message: 'Not authorized to submit leave for another user' };
+  }
+
+  const target = await User.findById(targetEmployeeId).select('role isActive');
+  if (!target?.isActive) throw { statusCode: 400, message: 'Invalid employee' };
+
+  const targetRole = (target.role || '').toUpperCase();
+  if ((role === 'HR' || role === 'MANAGER') && !['EMPLOYEE', 'INTERN'].includes(targetRole)) {
+    throw { statusCode: 403, message: 'You can only manage leave for employees or interns' };
+  }
+};
+
+const assertPrivilegedExtraLeavesTarget = async (actorRole, targetEmployeeId) => {
+  const target = await User.findById(targetEmployeeId).select('role isActive');
+  if (!target?.isActive) throw { statusCode: 400, message: 'Invalid employee' };
+  const role = (actorRole || '').toUpperCase();
+  const targetRole = (target.role || '').toUpperCase();
+  if ((role === 'HR' || role === 'MANAGER') && !['EMPLOYEE', 'INTERN'].includes(targetRole)) {
+    throw { statusCode: 403, message: 'Not authorized for this employee' };
+  }
+};
+
 const createLeaveRequest = async ({ employeeId, leaveTypeId, startDate, endDate, totalDays, reason }) => {
   const balance = await getLeaveBalanceInfo(employeeId);
   
@@ -269,6 +305,63 @@ const createLeaveRequest = async ({ employeeId, leaveTypeId, startDate, endDate,
   });
 
   return mapLeaveRequest(request);
+};
+
+const updateLeaveRequest = async ({
+  id,
+  actorUserId,
+  actorRole,
+  startDate,
+  endDate,
+  totalDays,
+  reason,
+}) => {
+  const request = await LeaveRequest.findById(id);
+  if (!request) throw { statusCode: 404, message: 'Leave request not found' };
+  if (request.status !== 'pending') {
+    throw { statusCode: 400, message: 'Only pending requests can be updated' };
+  }
+
+  const ownerId = request.employeeId.toString();
+  const actorId = actorUserId.toString();
+  const role = (actorRole || '').toUpperCase();
+
+  if (ownerId !== actorId) {
+    await assertPrivilegedLeaveAssignment(actorRole, actorUserId, request.employeeId);
+  } else if (role === 'EMPLOYEE' || role === 'INTERN') {
+    // self-edit own pending
+  } else if (!['SUPER_ADMIN', 'MANAGER', 'HR'].includes(role)) {
+    throw { statusCode: 403, message: 'Not authorized' };
+  }
+
+  const overlap = await LeaveRequest.findOne({
+    _id: { $ne: request._id },
+    employeeId: request.employeeId,
+    status: { $ne: 'rejected' },
+    $or: [
+      { startDate: { $lte: new Date(endDate) }, endDate: { $gte: new Date(startDate) } },
+    ],
+  });
+  if (overlap) {
+    throw { statusCode: 400, message: 'Leave dates overlap with an existing request' };
+  }
+
+  const balance = await getLeaveBalanceInfo(request.employeeId);
+  if (balance && balance.remaining_days < totalDays) {
+    throw { statusCode: 400, message: `Insufficient leave balance. Available: ${balance.remaining_days} days` };
+  }
+
+  request.startDate = startDate;
+  request.endDate = endDate;
+  request.totalDays = totalDays;
+  if (reason !== undefined) request.reason = reason;
+  await request.save();
+
+  const populated = await LeaveRequest.findById(id)
+    .populate('employeeId', 'name department')
+    .populate('leaveTypeId', 'name')
+    .populate('reviewedBy', 'name');
+  return mapLeaveRequest(populated);
 };
 
 const deleteLeaveRequest = async (id, userId, role) => {
@@ -399,8 +492,9 @@ const reviewOtherLeaveRequest = async ({ id, reviewerId, status, reviewNote }) =
   return mapLeaveRequest(request);
 };
 
-export { 
+export {
   getLeaveTypes, getLeaveBalances, getLeaveBalanceInfo, addExtraLeaves, addExtraLeavesBulk, adjustExtraLeaves,
-  getLeaveRequests, createLeaveRequest, deleteLeaveRequest, reviewLeaveRequest,
-  getOtherLeaveRequests, createOtherLeaveRequest, reviewOtherLeaveRequest
+  getLeaveRequests, createLeaveRequest, updateLeaveRequest, deleteLeaveRequest, reviewLeaveRequest,
+  getOtherLeaveRequests, createOtherLeaveRequest, reviewOtherLeaveRequest,
+  assertPrivilegedLeaveAssignment, assertPrivilegedExtraLeavesTarget,
 };

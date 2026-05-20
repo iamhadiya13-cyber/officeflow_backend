@@ -33,6 +33,10 @@ const getUserBalance = async (req, res) => {
 const addExtraLeaves = async (req, res) => {
   try {
     const employeeId = req.params.userId;
+    const role = (req.user.role || '').toUpperCase();
+    if (role !== 'SUPER_ADMIN') {
+      await leaveService.assertPrivilegedExtraLeavesTarget(req.user.role, employeeId);
+    }
     await leaveService.addExtraLeaves({
       employeeId,
       extraDays: Number(req.body.extra_days ?? req.body.extraDays ?? 0),
@@ -91,8 +95,10 @@ const getRequests = async (req, res) => {
 
 const createRequest = async (req, res) => {
   try {
+    const employeeId = req.body.employee_id || req.body.employeeId || req.user._id;
+    await leaveService.assertPrivilegedLeaveAssignment(req.user.role, req.user._id, employeeId);
     const request = await leaveService.createLeaveRequest({
-      employeeId: req.body.employee_id || req.body.employeeId || req.user._id,
+      employeeId,
       leaveTypeId: req.body.leave_type_id || req.body.leaveTypeId,
       startDate: req.body.start_date || req.body.startDate,
       endDate: req.body.end_date || req.body.endDate,
@@ -113,6 +119,23 @@ const deleteRequest = async (req, res) => {
   try {
     await leaveService.deleteLeaveRequest(req.params.id, req.user._id, req.user.role);
     return res.json(successResponse('Leave request deleted'));
+  } catch (err) {
+    return res.status(err.statusCode || 500).json(errorResponse(err.message));
+  }
+};
+
+const updateRequest = async (req, res) => {
+  try {
+    const request = await leaveService.updateLeaveRequest({
+      id: req.params.id,
+      actorUserId: req.user._id,
+      actorRole: req.user.role,
+      startDate: req.body.start_date || req.body.startDate,
+      endDate: req.body.end_date || req.body.endDate,
+      totalDays: Number(req.body.total_days ?? req.body.totalDays ?? 0),
+      reason: req.body.reason,
+    });
+    return res.json(successResponse('Leave request updated', request));
   } catch (err) {
     return res.status(err.statusCode || 500).json(errorResponse(err.message));
   }
@@ -144,8 +167,10 @@ const getOtherRequests = async (req, res) => {
 
 const createOtherRequest = async (req, res) => {
   try {
+    const employeeId = req.body.employee_id || req.body.employeeId || req.user._id;
+    await leaveService.assertPrivilegedLeaveAssignment(req.user.role, req.user._id, employeeId);
     const request = await leaveService.createOtherLeaveRequest({
-      employeeId: req.body.employee_id || req.body.employeeId || req.user._id,
+      employeeId,
       startDate: req.body.start_date || req.body.startDate,
       endDate: req.body.end_date || req.body.endDate,
       totalDays: Number(req.body.total_days ?? req.body.totalDays ?? 0),
@@ -174,6 +199,6 @@ const reviewOther = async (req, res) => {
 export const leaveController = {
   getTypes, getMyBalance, getUserBalance, addExtraLeaves, adjustExtraLeaves,
   addExtraLeavesBulk,
-  getRequests, createRequest, getOne, deleteRequest, review,
+  getRequests, createRequest, updateRequest, getOne, deleteRequest, review,
   getOtherRequests, createOtherRequest, reviewOther
 };

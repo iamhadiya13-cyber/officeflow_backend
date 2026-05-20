@@ -1,5 +1,31 @@
+import mongoose from 'mongoose';
 import * as expenseService from '../services/expenseService.js';
 import { successResponse, errorResponse } from '../utils/response.js';
+import { User } from '../models/User.js';
+
+const resolveExpenseEmployeeId = async (req) => {
+  const selfId = req.user._id;
+  const raw = req.body.employee_id || req.body.employeeId;
+  if (!raw || String(raw) === String(selfId)) return selfId;
+
+  const role = (req.user.role || '').toUpperCase();
+  if (!['SUPER_ADMIN', 'MANAGER', 'HR'].includes(role)) {
+    throw { statusCode: 403, message: 'Not authorized to create an expense for another user' };
+  }
+  if (!mongoose.Types.ObjectId.isValid(raw)) {
+    throw { statusCode: 400, message: 'Invalid employee' };
+  }
+  const target = await User.findById(raw).select('role isActive');
+  if (!target?.isActive) throw { statusCode: 400, message: 'Invalid employee' };
+
+  const targetRole = (target.role || '').toUpperCase();
+  if (role === 'HR' || role === 'MANAGER') {
+    if (!['EMPLOYEE', 'INTERN'].includes(targetRole)) {
+      throw { statusCode: 403, message: 'You can only record expenses for employees or interns' };
+    }
+  }
+  return raw;
+};
 
 const getAll = async (req, res) => {
   try {
@@ -37,8 +63,9 @@ const getQuarterSnapshots = async (req, res) => {
 const create = async (req, res) => {
   try {
     const { expenseType, expense_type, title, description, amount, tripRequestId, expenseDate, expense_date } = req.body;
+    const employeeId = await resolveExpenseEmployeeId(req);
     const result = await expenseService.createExpense({
-      employeeId: req.user._id,
+      employeeId,
       expenseType: expenseType || expense_type,
       title,
       description,

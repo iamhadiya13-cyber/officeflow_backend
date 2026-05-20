@@ -390,7 +390,7 @@ const deleteExpense = async ({ id, userId, role }) => {
   const existing = await ExpenseRequest.findById(id);
   if (!existing) throw { statusCode: 404, message: 'Expense not found' };
 
-  if (role !== 'SUPER_ADMIN' && role !== 'MANAGER') {
+  if (role !== 'SUPER_ADMIN' && role !== 'MANAGER' && role !== 'HR') {
     if (existing.employeeId.toString() !== userId.toString()) throw { statusCode: 403, message: 'Not authorized' };
     if (existing.isSettled) throw { statusCode: 400, message: 'Can only delete unsettled expenses' };
   }
@@ -462,7 +462,7 @@ const settleExpense = async ({ id, userId }) => {
   return { expense: mapExpense(populated), action: is_settled ? 'EXPENSE_SETTLED' : 'EXPENSE_UNSETTLED' };
 };
 
-const getSettlements = async ({ employeeIds, year, month, quarter, page = 1, limit = 10 }) => {
+const getSettlements = async ({ employeeIds, year, month, months, quarter, page = 1, limit = 10 }) => {
   const query = {
     isSettled: true,
     isArchived: false,
@@ -478,10 +478,23 @@ const getSettlements = async ({ employeeIds, year, month, quarter, page = 1, lim
     }
   }
 
-  if (year || month || quarter) {
+  if (year || month || months || quarter) {
     const y = year ? parseInt(year) : new Date().getFullYear();
-    
-    if (quarter) {
+
+    if (months) {
+      const monthValues = String(months)
+        .split(',')
+        .map((value) => parseInt(value, 10))
+        .filter((value) => value >= 1 && value <= 12);
+      if (!isNaN(y) && monthValues.length > 0) {
+        query.$or = monthValues.map((monthValue) => ({
+          expenseDate: {
+            $gte: new Date(y, monthValue - 1, 1),
+            $lte: new Date(y, monthValue, 0, 23, 59, 59, 999),
+          },
+        }));
+      }
+    } else if (quarter) {
       const q = parseInt(quarter);
       if (!isNaN(q) && q >= 1 && q <= 4) {
         const startMonth = (q - 1) * 3; // 0 for Q1 (Jan), 3 for Q2 (Apr)

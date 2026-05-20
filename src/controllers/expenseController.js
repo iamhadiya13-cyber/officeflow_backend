@@ -197,9 +197,9 @@ const getPersonSummary = async (req, res) => {
 
 const getSettlements = async (req, res) => {
   try {
-    const { employee_ids, year, month, quarter, page, limit } = req.query;
+    const { employee_ids, year, month, months, quarter, page, limit } = req.query;
     const employeeIds = employee_ids ? employee_ids.split(',') : [];
-    const result = await expenseService.getSettlements({ employeeIds, year, month, quarter, page, limit });
+    const result = await expenseService.getSettlements({ employeeIds, year, month, months, quarter, page, limit });
 
     return res.json(successResponse('Settlements loaded', result.data, result.meta));
   } catch (err) {

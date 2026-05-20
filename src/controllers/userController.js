@@ -13,7 +13,7 @@ const canManageRole = (actorRole, targetRole) => {
   const actor = normalizeRole(actorRole)
   const target = normalizeRole(targetRole)
   if (actor === 'SUPER_ADMIN') return true
-  if (actor === 'HR') return target === 'EMPLOYEE' || target === 'INTERN' || target === 'HR'
+  if (actor === 'HR') return target === 'EMPLOYEE' || target === 'INTERN'
   if (actor === 'MANAGER') return target === 'EMPLOYEE' || target === 'INTERN'
   return false
 }

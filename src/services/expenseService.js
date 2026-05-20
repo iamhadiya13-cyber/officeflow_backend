@@ -889,11 +889,6 @@ const getPersonSummary = async ({ userId, role, filters }) => {
 };
 
 const getSettlementEmployeeSummary = async ({ userId, role, month, year }) => {
-  const employees = await User.find(
-    { isActive: true },
-    'name department role'
-  ).sort({ name: 1 });
-
   const targetMonth = parseInt(month);
   const targetYear = parseInt(year);
   const match = {
@@ -913,13 +908,9 @@ const getSettlementEmployeeSummary = async ({ userId, role, month, year }) => {
     };
   }
 
-  const employeeIds = employees.map((employee) => employee._id);
   const expenseSummary = await ExpenseRequest.aggregate([
     {
-      $match: {
-        ...match,
-        employeeId: { $in: employeeIds }
-      }
+      $match: match
     },
     {
       $group: {
@@ -936,29 +927,39 @@ const getSettlementEmployeeSummary = async ({ userId, role, month, year }) => {
           $sum: { $cond: [{ $eq: ['$isSettled', true] }, 1, 0] }
         }
       }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: '_id',
+        foreignField: '_id',
+        as: 'user'
+      }
+    },
+    { $unwind: '$user' },
+    { $match: { 'user.isActive': true } },
+    {
+      $project: {
+        _id: 0,
+        employeeId: { $toString: '$_id' },
+        employee_name: '$user.name',
+        department: { $ifNull: ['$user.department', ''] },
+        total_amount: '$totalAmount',
+        total_count: '$totalCount',
+        unsettled_amount: '$unsettledAmount',
+        unsettled_count: '$unsettledCount',
+        settled_count: '$settledCount',
+        status: {
+          $cond: [
+            { $gt: ['$unsettledCount', 0] },
+            'pending',
+            'settled'
+          ]
+        }
+      }
     }
   ]);
-
-  const summaryMap = new Map(expenseSummary.map((item) => [item._id.toString(), item]));
-
-  return employees.map((employee) => {
-    const summary = summaryMap.get(employee._id.toString());
-    const totalCount = summary?.totalCount || 0;
-    const unsettledCount = summary?.unsettledCount || 0;
-    const status = totalCount === 0 ? 'no_expenses' : unsettledCount > 0 ? 'pending' : 'settled';
-
-    return {
-      employeeId: employee._id.toString(),
-      employee_name: employee.name,
-      department: employee.department || '',
-      total_amount: summary?.totalAmount || 0,
-      total_count: totalCount,
-      unsettled_amount: summary?.unsettledAmount || 0,
-      unsettled_count: unsettledCount,
-      settled_count: summary?.settledCount || 0,
-      status
-    };
-  });
+  return expenseSummary.sort((a, b) => a.employee_name.localeCompare(b.employee_name));
 };
 
 const batchSettle = async ({ userId, role, filters, targetStatus, note }) => {

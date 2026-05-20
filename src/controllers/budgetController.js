@@ -4,22 +4,29 @@ import { ExpenseRequest } from '../models/ExpenseRequest.js';
 import { successResponse, errorResponse } from '../utils/response.js';
 import { getQuarter } from '../utils/dateHelper.js';
 
-// Helper: get current quarter date range
-const currentQuarterRange = () => {
+// Helper: get quarter date range (uses provided quarter/year or current)
+const quarterRange = ({ quarter, year } = {}) => {
   const now = new Date();
-  const quarter = getQuarter(now);
-  const year = now.getFullYear();
-  const startMonth = (quarter - 1) * 3;
-  const start = new Date(year, startMonth, 1);
-  const end = new Date(year, startMonth + 3, 0, 23, 59, 59, 999);
-  return { start, end, quarter, year };
+  const parsedQuarter = parseInt(quarter, 10);
+  const parsedYear = parseInt(year, 10);
+  const q = Number.isFinite(parsedQuarter) && parsedQuarter >= 1 && parsedQuarter <= 4
+    ? parsedQuarter
+    : getQuarter(now);
+  const y = Number.isFinite(parsedYear) ? parsedYear : now.getFullYear();
+  const startMonth = (q - 1) * 3;
+  const start = new Date(y, startMonth, 1);
+  const end = new Date(y, startMonth + 3, 0, 23, 59, 59, 999);
+  return { start, end, quarter: q, year: y };
 };
 
 // GET /budget/current — returns current quarter budget + personal usage for any role
 const getCurrent = async (req, res) => {
   try {
     const { _id: userId } = req.user;
-    const { start, end, quarter, year } = currentQuarterRange();
+    const { start, end, quarter, year } = quarterRange({
+      quarter: req.query.quarter,
+      year: req.query.year,
+    });
 
     // Get active budget (most recent MonthlyBudget record)
     const budget = await MonthlyBudget.findOne().sort({ effectiveFrom: -1 });
@@ -109,7 +116,10 @@ const getHistory = async (req, res) => {
 // GET /budget/quarterly/usage — used by Budget page for all-type breakdown
 const getUsage = async (req, res) => {
   try {
-    const { start, end, quarter, year } = currentQuarterRange();
+    const { start, end, quarter, year } = quarterRange({
+      quarter: req.query.quarter,
+      year: req.query.year,
+    });
     const budget = await MonthlyBudget.findOne().sort({ effectiveFrom: -1 });
     const monthlyAmount = budget ? parseFloat(budget.monthlyAmount.toString()) : 0;
     const quarterlyBudget = monthlyAmount * 3;
